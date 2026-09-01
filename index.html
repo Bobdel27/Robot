@@ -561,7 +561,7 @@
   const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let listening = false;
-  let resultSubmitted = false;
+  let finalTranscript = '';
   let startWatchdog = null;
 
   function micError(message) {
@@ -574,25 +574,29 @@
   if (SpeechRecognitionAPI) {
     recognition = new SpeechRecognitionAPI();
     recognition.lang = 'fr-FR';
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       clearTimeout(startWatchdog);
       listening = true;
-      resultSubmitted = false;
+      finalTranscript = '';
       micBtn.classList.add('listening');
-      input.placeholder = "Je t'écoute...";
+      input.placeholder = "Je t'écoute... (appuie à nouveau pour envoyer)";
     };
 
     recognition.onresult = (event) => {
-      if (resultSubmitted) return;
-      const transcript = event.results[0][0].transcript.trim();
-      if (transcript) {
-        resultSubmitted = true;
-        input.value = transcript;
-        form.requestSubmit();
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const chunk = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += chunk + ' ';
+        } else {
+          interim += chunk;
+        }
       }
+      input.value = (finalTranscript + interim).trim();
     };
 
     recognition.onerror = (event) => {
@@ -612,6 +616,10 @@
       listening = false;
       micBtn.classList.remove('listening');
       input.placeholder = "Écris ou parle...";
+      const text = input.value.trim();
+      if (text) {
+        form.requestSubmit();
+      }
     };
 
     micBtn.addEventListener('click', () => {
@@ -621,6 +629,7 @@
       }
       if (window.speechSynthesis) window.speechSynthesis.cancel();
       stopTalking();
+      input.value = '';
       try {
         recognition.start();
         // Si "onstart" ne se déclenche pas rapidement, le micro est probablement bloqué en silence
