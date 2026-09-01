@@ -137,6 +137,18 @@
     font-family: var(--font-body);
   }
 
+  #langSelect{
+    margin-top: 6px;
+    max-width: 220px;
+    background: var(--panel);
+    color: var(--cream);
+    border: 1px solid var(--panel-edge);
+    border-radius: 12px;
+    font-size: 12px;
+    padding: 4px 8px;
+    font-family: var(--font-body);
+  }
+
   #mute{
     position:absolute;
     top: 0; right: 0;
@@ -371,6 +383,14 @@
     </div>
     <div class="subtitle">Pose-moi n'importe quelle question, à voix... écrite</div>
     <select id="voiceSelect" aria-label="Choisir une voix"></select>
+    <select id="langSelect" aria-label="Langue de reconnaissance vocale">
+      <option value="fr-FR">🎙️ Français</option>
+      <option value="en-US">🎙️ Anglais</option>
+      <option value="es-ES">🎙️ Espagnol</option>
+      <option value="de-DE">🎙️ Allemand</option>
+      <option value="it-IT">🎙️ Italien</option>
+      <option value="pt-PT">🎙️ Portugais</option>
+    </select>
   </div>
 
   <div id="thread">
@@ -1109,7 +1129,13 @@
 
   if (SpeechRecognitionAPI) {
     recognition = new SpeechRecognitionAPI();
-    recognition.lang = 'fr-FR';
+    recognition.lang = localStorage.getItem('bipbip_reco_lang') || 'fr-FR';
+    const langSelect = document.getElementById('langSelect');
+    langSelect.value = recognition.lang;
+    langSelect.addEventListener('change', () => {
+      localStorage.setItem('bipbip_reco_lang', langSelect.value);
+      recognition.lang = langSelect.value;
+    });
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
