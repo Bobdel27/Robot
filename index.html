@@ -508,8 +508,8 @@
   let cachedFrVoice = null;
   getVoicesAsync().then(voices => { cachedFrVoice = pickBestFrenchVoice(voices); });
 
-  function speak(text) {
-    if (muted || !window.speechSynthesis) return;
+  function speakBrowser(text) {
+    if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = 'fr-FR';
@@ -520,6 +520,65 @@
     utter.onend = stopTalking;
     utter.onerror = stopTalking;
     window.speechSynthesis.speak(utter);
+  }
+
+  // Convertit l'audio brut (PCM) renvoyé par Gemini en fichier WAV lisible par le navigateur
+  function pcmToWavBlob(base64Data, mimeType) {
+    const rateMatch = /rate=(\d+)/.exec(mimeType || '');
+    const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+    const binary = atob(base64Data);
+    const len = binary.length;
+    const buffer = new ArrayBuffer(44 + len);
+    const view = new DataView(buffer);
+    function writeString(offset, str) {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + len, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, len, true);
+    for (let i = 0; i < len; i++) view.setUint8(44 + i, binary.charCodeAt(i));
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  let currentAudio = null;
+
+  async function speak(text) {
+    if (muted) return;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "tts", text }),
+      });
+      if (!res.ok) throw new Error('tts http ' + res.status);
+      const data = await res.json();
+      if (!data.audioBase64) throw new Error('pas audio');
+
+      const blob = pcmToWavBlob(data.audioBase64, data.mimeType);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      currentAudio = audio;
+      audio.onplay = startTalking;
+      audio.onended = () => { stopTalking(); URL.revokeObjectURL(url); };
+      audio.onerror = () => { stopTalking(); URL.revokeObjectURL(url); };
+      await audio.play();
+    } catch (err) {
+      // Repli silencieux sur la voix simple du navigateur si la voix IA échoue
+      speakBrowser(text);
+    }
   }
 
   // Sur mobile (Safari/Chrome), la synthèse vocale doit être "débloquée"
@@ -543,8 +602,7 @@
   const WORKER_URL = "https://bipbip-relay.14vd298.workers.dev";
 
   // ---------- Météo réelle (Open-Meteo, gratuit, sans clé) ----------
-  let weatherContext = '';
-  let weatherRequested = false;
+  let cachedCoords = null;
 
   function weatherCodeToText(code) {
     const map = {
@@ -559,28 +617,43 @@
     return map[code] || "conditions variables";
   }
 
-  function loadWeather() {
-    if (weatherRequested || !navigator.geolocation) return;
-    weatherRequested = true;
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const res = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`
-          );
-          const data = await res.json();
-          const temp = Math.round(data.current.temperature_2m);
-          const desc = weatherCodeToText(data.current.weather_code);
-          const wind = Math.round(data.current.wind_speed_10m);
-          weatherContext = `Météo actuelle chez l'utilisateur : ${desc}, ${temp}°C, vent à ${wind} km/h.`;
-        } catch (e) { /* pas grave, Bipbip répondra sans météo */ }
-      },
-      () => { /* géolocalisation refusée, on ignore simplement */ },
-      { timeout: 6000 }
-    );
+  function getCoords() {
+    return new Promise((resolve) => {
+      if (cachedCoords) { resolve(cachedCoords); return; }
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          cachedCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+          resolve(cachedCoords);
+        },
+        () => resolve(null),
+        { timeout: 8000 }
+      );
+    });
   }
-  loadWeather();
+
+  const WEATHER_TRIGGERS = ['météo', 'meteo', "temps qu'il fait", 'température', 'temperature', 'il fait combien', 'va-t-il pleuvoir', 'quel temps', 'chaud dehors', 'froid dehors', 'il pleut'];
+
+  async function fetchWeatherContext(question) {
+    const lower = question.toLowerCase();
+    if (!WEATHER_TRIGGERS.some(t => lower.includes(t))) return { context: '', asked: false };
+    const coords = await getCoords();
+    if (!coords) {
+      return { context: '', asked: true, locationDenied: true };
+    }
+    try {
+      const res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`
+      );
+      const data = await res.json();
+      const temp = Math.round(data.current.temperature_2m);
+      const desc = weatherCodeToText(data.current.weather_code);
+      const wind = Math.round(data.current.wind_speed_10m);
+      return { context: `Météo actuelle chez l'utilisateur : ${desc}, ${temp}°C, vent à ${wind} km/h.`, asked: true };
+    } catch (e) {
+      return { context: '', asked: true };
+    }
+  }
 
   // ---------- Actualités (France Info, via rss2json, gratuit sans clé) ----------
   async function fetchNewsContext(question) {
@@ -655,12 +728,23 @@
     sendBtn.disabled = true;
 
     try {
-      const [newsCtx, currencyCtx, wikiCtx] = await Promise.all([
+      const [weatherResult, newsCtx, currencyCtx, wikiCtx] = await Promise.all([
+        fetchWeatherContext(question),
         fetchNewsContext(question),
         fetchCurrencyContext(question),
         fetchWikipediaContext(question)
       ]);
-      const liveContext = [weatherContext, newsCtx, currencyCtx, wikiCtx].filter(Boolean).join(' ');
+
+      if (weatherResult.locationDenied) {
+        removeTyping();
+        const bubble = addBubble('bot', "Je n'ai pas accès à ta position, donc je ne peux pas te donner la météo. Vérifie que tu as autorisé la localisation pour cette page dans les réglages de ton navigateur.");
+        bubble.classList.add('error');
+        requestInFlight = false;
+        sendBtn.disabled = false;
+        return;
+      }
+
+      const liveContext = [weatherResult.context, newsCtx, currencyCtx, wikiCtx].filter(Boolean).join(' ');
 
       const response = await fetch(WORKER_URL, {
         method: "POST",
