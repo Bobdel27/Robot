@@ -477,15 +477,45 @@
     mouth.setAttribute('d', MOUTH_CLOSED);
   }
 
+  function getVoicesAsync() {
+    return new Promise((resolve) => {
+      const existing = window.speechSynthesis.getVoices();
+      if (existing.length) { resolve(existing); return; }
+      window.speechSynthesis.onvoiceschanged = () => {
+        resolve(window.speechSynthesis.getVoices());
+      };
+      // Filet de sécurité si l'événement ne se déclenche jamais
+      setTimeout(() => resolve(window.speechSynthesis.getVoices()), 500);
+    });
+  }
+
+  function pickBestFrenchVoice(voices) {
+    const frVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+    if (!frVoices.length) return null;
+    // On préfère les voix "haute qualité" connues (Google, Natural, Enhanced, Premium)
+    // avant les voix système basiques.
+    const qualityHints = ['google', 'natural', 'enhanced', 'premium', 'neural'];
+    const scored = frVoices.map(v => {
+      const name = v.name.toLowerCase();
+      const score = qualityHints.reduce((acc, hint) => acc + (name.includes(hint) ? 10 : 0), 0)
+        + (v.localService ? 1 : 0);
+      return { v, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].v;
+  }
+
+  let cachedFrVoice = null;
+  getVoicesAsync().then(voices => { cachedFrVoice = pickBestFrenchVoice(voices); });
+
   function speak(text) {
     if (muted || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = 'fr-FR';
-    utter.rate = 1;
-    const voices = window.speechSynthesis.getVoices();
-    const frVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
-    if (frVoice) utter.voice = frVoice;
+    utter.rate = 0.97;
+    utter.pitch = 1.02;
+    if (cachedFrVoice) utter.voice = cachedFrVoice;
     utter.onstart = startTalking;
     utter.onend = stopTalking;
     utter.onerror = stopTalking;
@@ -512,6 +542,109 @@
   // par exemple : "https://ton-worker.tonpseudo.workers.dev"
   const WORKER_URL = "https://bipbip-relay.14vd298.workers.dev";
 
+  // ---------- Météo réelle (Open-Meteo, gratuit, sans clé) ----------
+  let weatherContext = '';
+  let weatherRequested = false;
+
+  function weatherCodeToText(code) {
+    const map = {
+      0: "ciel dégagé", 1: "plutôt dégagé", 2: "partiellement nuageux", 3: "couvert",
+      45: "brouillard", 48: "brouillard givrant",
+      51: "bruine légère", 53: "bruine", 55: "bruine forte",
+      61: "pluie légère", 63: "pluie", 65: "forte pluie",
+      71: "neige légère", 73: "neige", 75: "forte neige",
+      80: "averses légères", 81: "averses", 82: "averses violentes",
+      95: "orage", 96: "orage avec grêle", 99: "orage violent avec grêle",
+    };
+    return map[code] || "conditions variables";
+  }
+
+  function loadWeather() {
+    if (weatherRequested || !navigator.geolocation) return;
+    weatherRequested = true;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`
+          );
+          const data = await res.json();
+          const temp = Math.round(data.current.temperature_2m);
+          const desc = weatherCodeToText(data.current.weather_code);
+          const wind = Math.round(data.current.wind_speed_10m);
+          weatherContext = `Météo actuelle chez l'utilisateur : ${desc}, ${temp}°C, vent à ${wind} km/h.`;
+        } catch (e) { /* pas grave, Bipbip répondra sans météo */ }
+      },
+      () => { /* géolocalisation refusée, on ignore simplement */ },
+      { timeout: 6000 }
+    );
+  }
+  loadWeather();
+
+  // ---------- Actualités (France Info, via rss2json, gratuit sans clé) ----------
+  async function fetchNewsContext(question) {
+    const lower = question.toLowerCase();
+    const triggers = ['actualité', 'actualités', 'actu ', 'les infos', 'infos du jour', 'nouvelles du jour', "qu'est-ce qui se passe"];
+    if (!triggers.some(t => lower.includes(t))) return '';
+    try {
+      const res = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://www.francetvinfo.fr/titres.rss'));
+      const data = await res.json();
+      const titles = (data.items || []).slice(0, 5).map(i => i.title);
+      if (!titles.length) return '';
+      return "Voici les titres d'actualité les plus récents en France : " + titles.join(' | ') + '.';
+    } catch (e) { return ''; }
+  }
+
+  // ---------- Taux de change (Frankfurter, gratuit sans clé) ----------
+  const CURRENCY_WORDS = {
+    'euro': 'EUR', 'euros': 'EUR',
+    'dollar canadien': 'CAD', 'dollars canadiens': 'CAD',
+    'dollar': 'USD', 'dollars': 'USD',
+    'livre sterling': 'GBP', 'livres sterling': 'GBP', 'livre': 'GBP', 'livres': 'GBP',
+    'franc suisse': 'CHF', 'francs suisses': 'CHF',
+    'yen': 'JPY', 'yens': 'JPY',
+  };
+  async function fetchCurrencyContext(question) {
+    const lower = question.toLowerCase();
+    const isConversion = /taux de change|combien (vaut|font|coûte)|conversion|convertir/.test(lower);
+    if (!isConversion) return '';
+    const found = new Set();
+    for (const word in CURRENCY_WORDS) {
+      if (lower.includes(word)) found.add(CURRENCY_WORDS[word]);
+    }
+    if (found.size === 0) return '';
+    const codes = Array.from(found);
+    const base = codes[0];
+    const targets = codes.slice(1).length ? codes.slice(1) : ['EUR', 'USD', 'GBP', 'CHF'].filter(c => c !== base);
+    try {
+      const res = await fetch(`https://api.frankfurter.app/latest?from=${base}&to=${targets.join(',')}`);
+      const data = await res.json();
+      const rates = Object.entries(data.rates).map(([c, r]) => `1 ${base} = ${r} ${c}`).join(', ');
+      return "Taux de change actuels : " + rates + ".";
+    } catch (e) { return ''; }
+  }
+
+  // ---------- Wikipédia (API officielle, gratuite sans clé) ----------
+  async function fetchWikipediaContext(question) {
+    const lower = question.toLowerCase();
+    const triggers = ['qui est ', "qu'est-ce que ", 'qu\'est ce que ', "c'est quoi ", 'parle-moi de ', 'parle moi de ', "explique-moi ce qu'est "];
+    const trigger = triggers.find(t => lower.includes(t));
+    if (!trigger) return '';
+    const subject = question.slice(lower.indexOf(trigger) + trigger.length).replace(/[?.!]/g, '').trim();
+    if (!subject) return '';
+    try {
+      const searchRes = await fetch(`https://fr.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(subject)}&format=json&origin=*`);
+      const searchData = await searchRes.json();
+      const title = searchData.query && searchData.query.search && searchData.query.search[0] && searchData.query.search[0].title;
+      if (!title) return '';
+      const sumRes = await fetch(`https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+      const sumData = await sumRes.json();
+      if (!sumData.extract) return '';
+      return `Extrait de Wikipédia sur "${title}" : ${sumData.extract}`;
+    } catch (e) { return ''; }
+  }
+
   let requestInFlight = false;
 
   async function askRobot(question) {
@@ -522,13 +655,20 @@
     sendBtn.disabled = true;
 
     try {
+      const [newsCtx, currencyCtx, wikiCtx] = await Promise.all([
+        fetchNewsContext(question),
+        fetchCurrencyContext(question),
+        fetchWikipediaContext(question)
+      ]);
+      const liveContext = [weatherContext, newsCtx, currencyCtx, wikiCtx].filter(Boolean).join(' ');
+
       const response = await fetch(WORKER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 1000,
-          system: "Tu es Bipbip, un petit robot assistant amical. Nous sommes le " + new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ". Tu réponds en français, de façon claire, chaleureuse et concise (adaptée à être lue à voix haute et affichée sur un écran de téléphone). Tu peux parler de n'importe quel sujet. Évite les listes à puces et le markdown, préfère des phrases courtes.",
+          system: "Tu es Bipbip, un petit robot assistant amical. Nous sommes le " + new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + (liveContext ? " " + liveContext : "") + " Tu réponds en français, de façon claire, chaleureuse et concise (adaptée à être lue à voix haute et affichée sur un écran de téléphone). Tu peux parler de n'importe quel sujet. Évite les listes à puces et le markdown, préfère des phrases courtes.",
           messages: history
         })
       });
@@ -561,10 +701,12 @@
   const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let listening = false;
+  let manualStop = false;
   let finalTranscript = '';
   let startWatchdog = null;
 
   function micError(message) {
+    manualStop = true;
     listening = false;
     micBtn.classList.remove('listening');
     input.placeholder = "Écris ou parle...";
@@ -581,7 +723,6 @@
     recognition.onstart = () => {
       clearTimeout(startWatchdog);
       listening = true;
-      finalTranscript = '';
       micBtn.classList.add('listening');
       input.placeholder = "Je t'écoute... (appuie à nouveau pour envoyer)";
     };
@@ -601,22 +742,36 @@
 
     recognition.onerror = (event) => {
       clearTimeout(startWatchdog);
+      // "no-speech" est normal pendant les silences ; on laisse "onend" relancer tout seul.
+      if (event.error === 'no-speech' && !manualStop) return;
       const reasons = {
         'not-allowed': "Le micro est bloqué pour cette page. Vérifie l'autorisation micro dans les réglages, ou ouvre ce fichier directement dans Safari plutôt que dans l'aperçu de l'app.",
         'service-not-allowed': "Le service de reconnaissance vocale n'est pas autorisé ici, probablement à cause de l'aperçu intégré. Essaie d'ouvrir le fichier directement dans Safari.",
-        'no-speech': "Je n'ai rien entendu, réessaie en parlant juste après avoir appuyé sur le micro.",
         'audio-capture': "Je ne trouve pas de micro disponible sur cet appareil.",
         'network': "Le micro nécessite une connexion réseau active pour reconnaître ta voix."
       };
-      micError(reasons[event.error] || "Le micro n'a pas fonctionné (" + event.error + "). Tu peux écrire ta question à la place.");
+      if (reasons[event.error]) {
+        micError(reasons[event.error]);
+      }
     };
 
     recognition.onend = () => {
       clearTimeout(startWatchdog);
+      if (!manualStop) {
+        // Le moteur du navigateur s'est arrêté tout seul (silence, timeout interne...) :
+        // on relance discrètement pour continuer à écouter la même question.
+        setTimeout(() => {
+          if (!manualStop) {
+            try { recognition.start(); } catch (e) { /* déjà en cours, on ignore */ }
+          }
+        }, 200);
+        return;
+      }
       listening = false;
       micBtn.classList.remove('listening');
       input.placeholder = "Écris ou parle...";
       const text = input.value.trim();
+      finalTranscript = '';
       if (text) {
         form.requestSubmit();
       }
@@ -624,12 +779,15 @@
 
     micBtn.addEventListener('click', () => {
       if (listening) {
+        manualStop = true;
         recognition.stop();
         return;
       }
       if (window.speechSynthesis) window.speechSynthesis.cancel();
       stopTalking();
       input.value = '';
+      finalTranscript = '';
+      manualStop = false;
       try {
         recognition.start();
         // Si "onstart" ne se déclenche pas rapidement, le micro est probablement bloqué en silence
