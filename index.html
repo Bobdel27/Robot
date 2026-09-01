@@ -291,6 +291,8 @@
 </head>
 <body>
 
+<audio id="ai-audio" playsinline style="display:none"></audio>
+
 <div id="app">
   <div id="stage" style="position:relative;">
     <button id="mute" aria-label="Couper la voix">
@@ -550,12 +552,10 @@
     return new Blob([buffer], { type: 'audio/wav' });
   }
 
-  let currentAudio = null;
-
   async function speak(text) {
     if (muted) return;
     if (window.speechSynthesis) window.speechSynthesis.cancel();
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    aiAudioEl.pause();
 
     try {
       const res = await fetch(WORKER_URL, {
@@ -569,12 +569,11 @@
 
       const blob = pcmToWavBlob(data.audioBase64, data.mimeType);
       const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      currentAudio = audio;
-      audio.onplay = startTalking;
-      audio.onended = () => { stopTalking(); URL.revokeObjectURL(url); };
-      audio.onerror = () => { stopTalking(); URL.revokeObjectURL(url); };
-      await audio.play();
+      aiAudioEl.onplay = startTalking;
+      aiAudioEl.onended = () => { stopTalking(); URL.revokeObjectURL(url); };
+      aiAudioEl.onerror = () => { stopTalking(); URL.revokeObjectURL(url); };
+      aiAudioEl.src = url;
+      await aiAudioEl.play();
     } catch (err) {
       // Repli silencieux sur la voix simple du navigateur si la voix IA échoue
       speakBrowser(text);
@@ -585,14 +584,22 @@
   // par un vrai clic direct avant de pouvoir être déclenchée plus tard
   // après un appel réseau (sinon elle reste muette silencieusement).
   let voiceUnlocked = false;
+  const aiAudioEl = document.getElementById('ai-audio');
+  const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
   function unlockVoice() {
-    if (voiceUnlocked || !window.speechSynthesis) return;
+    if (voiceUnlocked) return;
     voiceUnlocked = true;
-    const primer = new SpeechSynthesisUtterance('');
-    primer.volume = 0;
-    window.speechSynthesis.speak(primer);
-    // Force le chargement de la liste des voix sur certains navigateurs
-    window.speechSynthesis.getVoices();
+    if (window.speechSynthesis) {
+      const primer = new SpeechSynthesisUtterance('');
+      primer.volume = 0;
+      window.speechSynthesis.speak(primer);
+      window.speechSynthesis.getVoices();
+    }
+    // Débloque aussi l'élément <audio> partagé pour la voix IA, en le
+    // jouant une fois (silencieusement) pendant ce vrai geste utilisateur.
+    aiAudioEl.src = SILENT_WAV;
+    aiAudioEl.play().then(() => aiAudioEl.pause()).catch(() => {});
   }
   document.body.addEventListener('click', unlockVoice, { once: true });
   document.body.addEventListener('touchstart', unlockVoice, { once: true });
