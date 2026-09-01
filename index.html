@@ -160,12 +160,27 @@
     margin-left:auto; margin-right:auto;
   }
 
-  .bubble-row{ display:flex; }
+  .bubble-row{ display:flex; align-items:flex-end; gap:6px; }
   .bubble-row.user{ justify-content:flex-end; }
   .bubble-row.bot{ justify-content:flex-start; }
 
+  .listen-btn{
+    flex-shrink:0;
+    width: 30px; height: 30px;
+    border-radius:50%;
+    border: 1px solid var(--panel-edge);
+    background: var(--panel);
+    font-size: 14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    padding:0;
+  }
+  .listen-btn:active{ transform: scale(0.9); }
+
   .bubble{
-    max-width: 82%;
+    max-width: 76%;
     padding: 11px 14px;
     border-radius: 16px;
     font-size: 15px;
@@ -412,6 +427,17 @@
     bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'bot');
     bubble.textContent = text;
     row.appendChild(bubble);
+
+    if (role !== 'user') {
+      const listenBtn = document.createElement('button');
+      listenBtn.type = 'button';
+      listenBtn.className = 'listen-btn';
+      listenBtn.setAttribute('aria-label', 'Écouter cette réponse');
+      listenBtn.innerHTML = '🔊';
+      listenBtn.addEventListener('click', () => speak(text));
+      row.appendChild(listenBtn);
+    }
+
     thread.appendChild(row);
     thread.scrollTop = thread.scrollHeight;
     return bubble;
