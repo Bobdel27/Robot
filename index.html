@@ -125,6 +125,18 @@
   }
   .subtitle{ font-size: 12.5px; color: var(--dim); margin-top: 3px; }
 
+  #voiceSelect{
+    margin-top: 8px;
+    max-width: 220px;
+    background: var(--panel);
+    color: var(--cream);
+    border: 1px solid var(--panel-edge);
+    border-radius: 12px;
+    font-size: 12px;
+    padding: 4px 8px;
+    font-family: var(--font-body);
+  }
+
   #mute{
     position:absolute;
     top: 0; right: 0;
@@ -358,6 +370,7 @@
       <div id="status-dot"></div>
     </div>
     <div class="subtitle">Pose-moi n'importe quelle question, à voix... écrite</div>
+    <select id="voiceSelect" aria-label="Choisir une voix"></select>
   </div>
 
   <div id="thread">
@@ -395,10 +408,12 @@
   const muteBtn = document.getElementById('mute');
   const wave1 = document.getElementById('wave1');
   const wave2 = document.getElementById('wave2');
+  const voiceSelect = document.getElementById('voiceSelect');
 
   let history = [];
   let muted = false;
   let mouthTimer = null;
+  let selectedVoiceURI = localStorage.getItem('bipbip_voice') || '';
 
   const MOUTH_CLOSED = "M 74 150 Q 100 150 126 150";
   const MOUTH_SHAPES = [
@@ -420,6 +435,20 @@
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 110) + 'px';
   });
+
+  function saveHistory() {
+    try { localStorage.setItem('bipbip_history', JSON.stringify(history)); } catch (e) {}
+  }
+
+  function loadHistory() {
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem('bipbip_history') || '[]'); } catch (e) { saved = []; }
+    if (!Array.isArray(saved) || !saved.length) return;
+    history = saved;
+    saved.forEach(item => {
+      addBubble(item.role === 'user' ? 'user' : 'bot', item.content);
+    });
+  }
 
   function addBubble(role, text) {
     if (emptyState) emptyState.remove();
@@ -508,7 +537,33 @@
   }
 
   let cachedFrVoice = null;
-  getVoicesAsync().then(voices => { cachedFrVoice = pickBestFrenchVoice(voices); });
+  let allFrVoices = [];
+  getVoicesAsync().then(voices => {
+    cachedFrVoice = pickBestFrenchVoice(voices);
+    allFrVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+    voiceSelect.innerHTML = '';
+    const autoOpt = document.createElement('option');
+    autoOpt.value = '';
+    autoOpt.textContent = 'Voix automatique';
+    voiceSelect.appendChild(autoOpt);
+    allFrVoices.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.voiceURI;
+      opt.textContent = v.name;
+      voiceSelect.appendChild(opt);
+    });
+    voiceSelect.value = selectedVoiceURI;
+  });
+
+  voiceSelect.addEventListener('change', () => {
+    selectedVoiceURI = voiceSelect.value;
+    localStorage.setItem('bipbip_voice', selectedVoiceURI);
+  });
+
+  function getSelectedVoice() {
+    if (!selectedVoiceURI) return cachedFrVoice;
+    return allFrVoices.find(v => v.voiceURI === selectedVoiceURI) || cachedFrVoice;
+  }
 
   function speakBrowser(text) {
     if (!window.speechSynthesis) return;
@@ -517,7 +572,8 @@
     utter.lang = 'fr-FR';
     utter.rate = 0.97;
     utter.pitch = 1.02;
-    if (cachedFrVoice) utter.voice = cachedFrVoice;
+    const voice = getSelectedVoice();
+    if (voice) utter.voice = voice;
     utter.onstart = startTalking;
     utter.onend = stopTalking;
     utter.onerror = stopTalking;
@@ -556,6 +612,11 @@
     if (muted) return;
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     aiAudioEl.pause();
+
+    if (selectedVoiceURI) {
+      speakBrowser(text);
+      return;
+    }
 
     try {
       const res = await fetch(WORKER_URL, {
@@ -725,12 +786,142 @@
     } catch (e) { return ''; }
   }
 
+  // ---------- Rappels vocaux ----------
+  function tryHandleReminder(text) {
+    const m = text.match(/rappelle[-\s]?moi(?: de)? (.+?) dans (\d+)\s*(secondes?|minutes?|heures?)/i);
+    if (!m) return false;
+    const task = m[1].trim();
+    const amount = parseInt(m[2], 10);
+    const unit = m[3].toLowerCase();
+    const factor = unit.startsWith('heure') ? 3600000 : unit.startsWith('minute') ? 60000 : 1000;
+    const ms = amount * factor;
+    setTimeout(() => {
+      const bubble = addBubble('bot', '⏰ Rappel : ' + task);
+      history.push({ role: 'assistant', content: '⏰ Rappel : ' + task });
+      saveHistory();
+      speak('Rappel : ' + task);
+    }, ms);
+    const confirmText = "C'est noté, je te rappellerai dans " + amount + ' ' + unit + ' : ' + task + '.';
+    addBubble('bot', confirmText);
+    history.push({ role: 'assistant', content: confirmText });
+    saveHistory();
+    speak(confirmText);
+    return true;
+  }
+
+  // ---------- Minuteur / chronomètre ----------
+  let stopwatchStart = null;
+  let timerTitleInterval = null;
+
+  function tryHandleTimer(text) {
+    const lower = text.toLowerCase();
+
+    const timerMatch = lower.match(/minuteur(?: de)? (\d+)\s*(secondes?|minutes?)/);
+    if (timerMatch) {
+      const amount = parseInt(timerMatch[1], 10);
+      const unit = timerMatch[2];
+      const ms = unit.startsWith('minute') ? amount * 60000 : amount * 1000;
+      const endTime = Date.now() + ms;
+      clearInterval(timerTitleInterval);
+      timerTitleInterval = setInterval(() => {
+        const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+        document.title = remaining > 0 ? '⏱ ' + remaining + 's - Bipbip' : 'Bipbip';
+        if (remaining <= 0) clearInterval(timerTitleInterval);
+      }, 1000);
+      setTimeout(() => {
+        const msg = '⏱ Le minuteur de ' + amount + ' ' + unit + ' est terminé !';
+        addBubble('bot', msg);
+        history.push({ role: 'assistant', content: msg });
+        saveHistory();
+        speak(msg);
+        document.title = 'Bipbip';
+      }, ms);
+      const confirmText = 'Minuteur lancé pour ' + amount + ' ' + unit + '.';
+      addBubble('bot', confirmText);
+      history.push({ role: 'assistant', content: confirmText });
+      saveHistory();
+      speak(confirmText);
+      return true;
+    }
+
+    if (/démarre(?: le)? chronomètre|lance(?: le)? chronomètre/.test(lower)) {
+      stopwatchStart = Date.now();
+      const confirmText = 'Chronomètre démarré.';
+      addBubble('bot', confirmText);
+      history.push({ role: 'assistant', content: confirmText });
+      saveHistory();
+      speak(confirmText);
+      return true;
+    }
+
+    if (/arrête(?: le)? chronomètre|stop(?:pe)?(?: le)? chronomètre/.test(lower)) {
+      if (!stopwatchStart) {
+        const msg = "Le chronomètre n'a pas été démarré.";
+        addBubble('bot', msg);
+        history.push({ role: 'assistant', content: msg });
+        saveHistory();
+        speak(msg);
+        return true;
+      }
+      const elapsedSec = Math.round((Date.now() - stopwatchStart) / 1000);
+      stopwatchStart = null;
+      const msg = 'Chronomètre arrêté : ' + elapsedSec + ' secondes écoulées.';
+      addBubble('bot', msg);
+      history.push({ role: 'assistant', content: msg });
+      saveHistory();
+      speak(msg);
+      return true;
+    }
+
+    return false;
+  }
+
+  // ---------- Traduction à la volée (MyMemory, gratuit sans clé) ----------
+  const TRANSLATE_LANGS = {
+    'français': 'fr', 'anglais': 'en', 'espagnol': 'es', 'allemand': 'de',
+    'italien': 'it', 'portugais': 'pt', 'néerlandais': 'nl', 'russe': 'ru',
+    'chinois': 'zh', 'japonais': 'ja', 'arabe': 'ar'
+  };
+
+  async function tryHandleTranslation(text) {
+    const m = text.match(/traduis(?:-moi)?\s+(.+?)\s+en\s+(français|anglais|espagnol|allemand|italien|portugais|néerlandais|russe|chinois|japonais|arabe)/i);
+    if (!m) return false;
+    const toTranslate = m[1].trim();
+    const targetLang = TRANSLATE_LANGS[m[2].toLowerCase()];
+    addTyping();
+    try {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(toTranslate)}&langpair=fr|${targetLang}`);
+      const data = await res.json();
+      const translated = data.responseData && data.responseData.translatedText;
+      removeTyping();
+      const msg = translated ? translated : "Je n'ai pas réussi à traduire ça.";
+      addBubble('bot', msg);
+      history.push({ role: 'assistant', content: msg });
+      saveHistory();
+      speak(msg);
+    } catch (e) {
+      removeTyping();
+      const msg = "Je n'ai pas réussi à me connecter au service de traduction.";
+      const bubble = addBubble('bot', msg);
+      bubble.classList.add('error');
+    }
+    return true;
+  }
+
+  async function tryHandleLocalCommands(text) {
+    if (tryHandleReminder(text)) return true;
+    if (tryHandleTimer(text)) return true;
+    if (await tryHandleTranslation(text)) return true;
+    return false;
+  }
+
   let requestInFlight = false;
 
   async function askRobot(question) {
     if (requestInFlight) return;
     requestInFlight = true;
     history.push({ role: 'user', content: question });
+    saveHistory();
     addTyping();
     sendBtn.disabled = true;
 
@@ -776,12 +967,14 @@
       removeTyping();
       addBubble('bot', text);
       history.push({ role: 'assistant', content: text });
+      saveHistory();
       speak(text);
     } catch (err) {
       removeTyping();
       const bubble = addBubble('bot', "Je n'ai pas réussi à me connecter. Réessaie dans un instant.");
       bubble.classList.add('error');
       history.pop();
+      saveHistory();
     } finally {
       sendBtn.disabled = false;
       requestInFlight = false;
@@ -897,16 +1090,23 @@
     });
   }
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     stopTalking();
     addBubble('user', text);
+    history.push({ role: 'user', content: text });
+    saveHistory();
     input.value = '';
     input.style.height = 'auto';
-    askRobot(text);
+    const handled = await tryHandleLocalCommands(text);
+    if (!handled) {
+      history.pop();
+      saveHistory();
+      askRobot(text);
+    }
   });
 
   input.addEventListener('keydown', (e) => {
@@ -915,6 +1115,8 @@
       form.requestSubmit();
     }
   });
+
+  loadHistory();
 </script>
 </body>
 </html>
