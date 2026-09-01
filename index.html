@@ -450,6 +450,39 @@
     });
   }
 
+  function addImageBubble(role, caption, images) {
+    if (emptyState) emptyState.remove();
+    const row = document.createElement('div');
+    row.className = 'bubble-row ' + (role === 'user' ? 'user' : 'bot');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'bot');
+
+    const captionEl = document.createElement('div');
+    captionEl.textContent = caption;
+    bubble.appendChild(captionEl);
+
+    const grid = document.createElement('div');
+    grid.style.display = 'flex';
+    grid.style.flexWrap = 'wrap';
+    grid.style.gap = '6px';
+    grid.style.marginTop = '8px';
+    images.forEach(img => {
+      const imageEl = document.createElement('img');
+      imageEl.src = img.thumbnail || img.url;
+      imageEl.alt = img.title || caption;
+      imageEl.style.width = '96px';
+      imageEl.style.height = '96px';
+      imageEl.style.objectFit = 'cover';
+      imageEl.style.borderRadius = '10px';
+      grid.appendChild(imageEl);
+    });
+    bubble.appendChild(grid);
+    row.appendChild(bubble);
+    thread.appendChild(row);
+    thread.scrollTop = thread.scrollHeight;
+    return bubble;
+  }
+
   function addBubble(role, text) {
     if (emptyState) emptyState.remove();
     const row = document.createElement('div');
@@ -908,10 +941,87 @@
     return true;
   }
 
+  // ---------- Calculatrice vocale ----------
+  function tryHandleCalculation(text) {
+    const lower = text.toLowerCase().trim();
+    const triggerMatch = lower.match(/^(?:calcule|calcul|combien (?:fait|font|vaut)|c'est combien)\s*:?\s*(.+)/);
+    if (!triggerMatch) return false;
+
+    let expr = triggerMatch[1];
+    expr = expr
+      .replace(/plus/g, '+')
+      .replace(/moins/g, '-')
+      .replace(/fois|multiplié par/g, '*')
+      .replace(/divisé par/g, '/')
+      .replace(/,/g, '.')
+      .replace(/\?/g, '');
+
+    if (!/^[0-9+\-*/().\s]+$/.test(expr)) {
+      const msg = "Je n'ai pas compris ce calcul.";
+      addBubble('bot', msg);
+      history.push({ role: 'assistant', content: msg });
+      saveHistory();
+      speak(msg);
+      return true;
+    }
+
+    let result;
+    try {
+      result = Function('"use strict"; return (' + expr + ')')();
+    } catch (e) {
+      result = null;
+    }
+
+    const msg = (result === null || result === undefined || Number.isNaN(result) || !Number.isFinite(result))
+      ? "Je n'ai pas réussi à calculer ça."
+      : 'Ça fait ' + result + '.';
+    addBubble('bot', msg);
+    history.push({ role: 'assistant', content: msg });
+    saveHistory();
+    speak(msg);
+    return true;
+  }
+
+  // ---------- Recherche d'images ----------
+  async function tryHandleImageSearch(text) {
+    const m = text.match(/(?:montre[-\s]moi|cherche|affiche)(?:-moi)?\s+(?:une |des )?images?\s+(?:de |sur |d')(.+)/i)
+      || text.match(/photos?\s+(?:de |sur |d')(.+)/i);
+    if (!m) return false;
+    const query = m[1].trim().replace(/\?$/, '');
+    addTyping();
+    try {
+      const res = await fetch('https://api.openverse.org/v1/images/?q=' + encodeURIComponent(query) + '&page_size=3');
+      const data = await res.json();
+      removeTyping();
+      const results = (data.results || []).slice(0, 3);
+      if (!results.length) {
+        const msg = "Je n'ai pas trouvé d'image pour ça.";
+        addBubble('bot', msg);
+        history.push({ role: 'assistant', content: msg });
+        saveHistory();
+        speak(msg);
+        return true;
+      }
+      const caption = "Voici ce que j'ai trouvé pour \"" + query + "\" :";
+      addImageBubble('bot', caption, results);
+      history.push({ role: 'assistant', content: caption });
+      saveHistory();
+      speak(caption);
+    } catch (e) {
+      removeTyping();
+      const msg = "Je n'ai pas réussi à me connecter au service d'images.";
+      const bubble = addBubble('bot', msg);
+      bubble.classList.add('error');
+    }
+    return true;
+  }
+
   async function tryHandleLocalCommands(text) {
     if (tryHandleReminder(text)) return true;
     if (tryHandleTimer(text)) return true;
+    if (tryHandleCalculation(text)) return true;
     if (await tryHandleTranslation(text)) return true;
+    if (await tryHandleImageSearch(text)) return true;
     return false;
   }
 
