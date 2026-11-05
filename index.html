@@ -62,7 +62,7 @@
   #head-wrap{ width: 260px; height: 260px; max-width: 68vw; max-height: 68vw; position:relative; z-index:1; }
   #head-wrap svg{ width:100%; height:100%; overflow: visible; }
 
-  .antenna-line{ transform-origin: 100px 40px; animation: sway 3.6s ease-in-out infinite; }
+  .antenna-line{ transform-box: fill-box; transform-origin: center bottom; animation: sway 3.6s ease-in-out infinite; }
   @keyframes sway{
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(3deg); }
@@ -74,6 +74,7 @@
   }
 
   #eye-l, #eye-r{
+    transform-box: fill-box;
     transform-origin: center;
     animation: blink 4.5s ease-in-out infinite;
   }
@@ -147,6 +148,14 @@
     font-size: 12px;
     padding: 4px 8px;
     font-family: var(--font-body);
+  }
+
+  #pickers{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; justify-content:center; }
+  #pickers select{
+    margin-top:0; max-width:150px;
+    background: var(--panel); color: var(--cream);
+    border: 1px solid var(--panel-edge); border-radius: 12px;
+    font-size: 12px; padding: 4px 8px; font-family: var(--font-body);
   }
 
   #mute{
@@ -311,6 +320,58 @@
     50% { box-shadow: 0 0 0 9px rgba(216,76,76,0); }
   }
   #mic:disabled{ opacity:0.4; cursor:default; }
+
+  #info-btn{
+    position:absolute;
+    top: 0; left: 0;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--panel-edge);
+    background: var(--panel);
+    color: var(--amber);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    font-style: italic;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  #info-panel{
+    display:none;
+    position:fixed;
+    top:0; bottom:0; left:50%;
+    transform: translateX(-50%);
+    width:100%; max-width:480px;
+    z-index: 100;
+    background: var(--bg);
+    flex-direction:column;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #info-panel.open{ display:flex; }
+  .info-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  .info-title{ font-family: var(--font-display); font-weight:700; font-size:18px; color: var(--cream); }
+  .info-close{
+    width:34px; height:34px; border-radius:50%;
+    border:1px solid var(--panel-edge); background: var(--panel);
+    color: var(--cream); font-size:15px; cursor:pointer;
+  }
+  .info-body{ flex:1; overflow-y:auto; padding: 8px 16px 24px; }
+  .info-hint{ color: var(--dim); font-size:13px; margin: 6px 0 4px; }
+  .info-sec{ margin-top: 18px; }
+  .info-sec h3{ margin:0 0 6px; font-family: var(--font-display); font-size:16px; color: var(--amber); }
+  .info-sec p{ margin:0 0 8px; font-size:13px; line-height:1.45; color: var(--dim); }
+  .info-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .info-chip{
+    border:1px solid var(--panel-edge); background: var(--panel);
+    color: var(--cream); font-family: var(--font-body); font-size:13px;
+    padding: 8px 12px; border-radius: 16px; cursor:pointer; text-align:left;
+  }
+  .info-chip:active{ background: var(--panel-edge); }
 </style>
 </head>
 <body>
@@ -319,6 +380,7 @@
 
 <div id="app">
   <div id="stage" style="position:relative;">
+    <button id="info-btn" aria-label="Que sais-tu faire ?">i</button>
     <button id="mute" aria-label="Couper la voix">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="4 9 8 9 12 5 12 19 8 15 4 15 4 9" fill="currentColor" stroke="none"/>
@@ -329,68 +391,19 @@
 
     <div id="head-wrap">
       <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="domeFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#2b3268"/>
-            <stop offset="100%" stop-color="#1e2450"/>
-          </linearGradient>
-          <linearGradient id="visorFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#171b3c"/>
-            <stop offset="100%" stop-color="#12152f"/>
-          </linearGradient>
-        </defs>
-
-        <!-- antenna -->
-        <line class="antenna-line" x1="100" y1="40" x2="100" y2="16" stroke="#F2A65A" stroke-width="4" stroke-linecap="round"/>
-        <circle class="antenna-tip" cx="100" cy="11" r="7" fill="#F2A65A"/>
-
-        <!-- ears with sound waves -->
-        <circle cx="26" cy="112" r="15" fill="#232951" stroke="#3a4184" stroke-width="2.5"/>
-        <path class="ear-wave inner" d="M 12 106 Q 5 112 12 118" stroke="#F2A65A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        <path class="ear-wave outer" d="M 6 100 Q -6 112 6 124" stroke="#F2A65A" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7"/>
-
-        <circle cx="174" cy="112" r="15" fill="#232951" stroke="#3a4184" stroke-width="2.5"/>
-        <path class="ear-wave inner" d="M 188 106 Q 195 112 188 118" stroke="#F2A65A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        <path class="ear-wave outer" d="M 194 100 Q 206 112 194 124" stroke="#F2A65A" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7"/>
-
-        <!-- head dome -->
-        <rect x="34" y="42" width="132" height="126" rx="46" fill="url(#domeFill)" stroke="#F2A65A" stroke-width="3.5"/>
-
-        <!-- seam / panel line -->
-        <path class="seam" d="M 34 96 H 166" stroke="#3a4184" stroke-width="1.5" opacity="0.6"/>
-        <circle class="seam" cx="46" cy="96" r="2" fill="#F2A65A" opacity="0.6"/>
-        <circle class="seam" cx="154" cy="96" r="2" fill="#F2A65A" opacity="0.6"/>
-
-        <!-- visor / face plate -->
-        <rect x="50" y="66" width="100" height="58" rx="26" fill="url(#visorFill)"/>
-
-        <!-- eyes -->
-        <rect id="eye-l" x="68" y="86" width="18" height="24" rx="9" fill="#F2A65A"/>
-        <rect id="eye-r" x="114" y="86" width="18" height="24" rx="9" fill="#F2A65A"/>
-
-        <!-- mouth -->
-        <path id="mouth" d="M 74 150 Q 100 150 126 150" stroke="#F3EFE4" stroke-width="5" stroke-linecap="round" fill="none"/>
-
-        <!-- cheek bolts -->
-        <circle cx="48" cy="140" r="3.5" fill="#3a4184"/>
-        <circle cx="152" cy="140" r="3.5" fill="#3a4184"/>
+        <g id="body-art"><path d="M 30 200 C 34 176, 68 166, 88 164 L 112 164 C 132 166, 166 176, 170 200 Z" fill="#323a6e"/>
+        <path d="M 80 168 Q 100 182 120 168" stroke="#F2A65A" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <circle cx="100" cy="190" r="5" fill="#F2A65A" class="antenna-tip"/></g>
+        <g id="head-art" transform="translate(100,104) scale(1.45)"></g>
       </svg>
     </div>
 
     <div id="name-row">
-      <span class="title">Bipbip</span>
+      <span class="title" id="botTitle">Bip bip</span>
       <div id="status-dot"></div>
     </div>
     <div class="subtitle">Pose-moi n'importe quelle question, à voix... écrite</div>
-    <select id="voiceSelect" aria-label="Choisir une voix"></select>
-    <select id="langSelect" aria-label="Langue de reconnaissance vocale">
-      <option value="fr-FR">🎙️ Français</option>
-      <option value="en-US">🎙️ Anglais</option>
-      <option value="es-ES">🎙️ Espagnol</option>
-      <option value="de-DE">🎙️ Allemand</option>
-      <option value="it-IT">🎙️ Italien</option>
-      <option value="pt-PT">🎙️ Portugais</option>
-    </select>
+    <div id="pickers"><select id="voiceSelect" aria-label="Choisir une voix"></select><select id="headSelect" aria-label="Choisir une tête"></select><select id="hairSelect" aria-label="Choisir une coupe de cheveux" style="display:none"></select></div>
   </div>
 
   <div id="thread">
@@ -424,7 +437,9 @@
   const sendBtn = document.getElementById('send');
   const micBtn = document.getElementById('mic');
   const headWrap = document.getElementById('head-wrap');
-  const mouth = document.getElementById('mouth');
+  let mouth = null;
+  let botName = 'Bip bip';
+  let curClosed = null, curShapes = null;
   const muteBtn = document.getElementById('mute');
   const wave1 = document.getElementById('wave1');
   const wave2 = document.getElementById('wave2');
@@ -435,12 +450,12 @@
   let mouthTimer = null;
   let selectedVoiceURI = localStorage.getItem('bipbip_voice') || '';
 
-  const MOUTH_CLOSED = "M 74 150 Q 100 150 126 150";
+  const MOUTH_CLOSED = "M -12 14 Q 0 22 12 14 Z";
   const MOUTH_SHAPES = [
-    "M 74 145 Q 100 174 126 145",
-    "M 78 150 Q 100 161 122 150",
-    "M 74 150 Q 100 144 126 150",
-    "M 82 150 Q 100 163 118 150"
+    "M -12 13 Q 0 38 12 13 Z",
+    "M -11 14 Q 0 28 11 14 Z",
+    "M -12 14 Q 0 22 12 14 Z",
+    "M -12 13 Q 0 33 12 13 Z"
   ];
 
   muteBtn.addEventListener('click', () => {
@@ -550,7 +565,7 @@
     headWrap.classList.add('talking');
     let i = 0;
     mouthTimer = setInterval(() => {
-      mouth.setAttribute('d', MOUTH_SHAPES[i % MOUTH_SHAPES.length]);
+      mouth.setAttribute('d', curShapes[i % curShapes.length]);
       i++;
     }, 130);
   }
@@ -558,7 +573,7 @@
   function stopTalking() {
     headWrap.classList.remove('talking');
     clearInterval(mouthTimer);
-    mouth.setAttribute('d', MOUTH_CLOSED);
+    mouth.setAttribute('d', curClosed);
   }
 
   function getVoicesAsync() {
@@ -611,6 +626,221 @@
   voiceSelect.addEventListener('change', () => {
     selectedVoiceURI = voiceSelect.value;
     localStorage.setItem('bipbip_voice', selectedVoiceURI);
+  });
+
+  // ---------- Coupes de cheveux ----------
+  const HL = '<path d="M 70 34 Q 96 22 124 30" stroke="#ffffff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.18"/>';
+  const F = 'fill="url(#hairFill)"';
+  const FRONT_LONG = '<path d="M 50 102 C 40 48, 74 20, 102 22 C 136 22, 162 52, 150 102 C 148 76, 136 58, 114 48 C 106 62, 84 78, 62 84 C 56 88, 52 94, 50 102 Z" ' + F + '/>' + HL;
+  const FRONT_SHORT = '<path d="M 54 92 C 48 50, 76 24, 102 24 C 130 24, 152 50, 146 92 C 142 70, 130 56, 110 50 C 100 62, 80 72, 62 78 C 58 82, 55 86, 54 92 Z" ' + F + '/>' + HL;
+  const CAP = '<path d="M 48 98 C 40 44, 72 14, 100 14 C 128 14, 160 44, 152 98 L 148 80 L 52 80 Z" ' + F + '/>';
+  const HAIRS = {
+    longs: { label: 'Longs', back: '<path d="M 38 100 C 28 40, 70 12, 100 12 C 130 12, 172 40, 162 100 C 170 150, 178 182, 158 200 L 42 200 C 22 182, 30 150, 38 100 Z" ' + F + '/>', front: FRONT_LONG },
+    carre: { label: 'Carré', back: '<path d="M 40 100 C 30 40, 70 12, 100 12 C 130 12, 170 40, 160 100 C 164 124, 162 140, 152 148 L 48 148 C 38 140, 36 124, 40 100 Z" ' + F + '/>', front: FRONT_LONG },
+    court: { label: 'Court', back: CAP, front: FRONT_SHORT },
+    queue: { label: 'Queue de cheval', back: CAP + '<path d="M 138 38 C 176 34, 194 92, 178 146 C 174 122, 166 98, 146 84 Z" ' + F + '/>', front: FRONT_LONG + '<circle cx="149" cy="62" r="4" fill="#F2A65A"/>' },
+    couettes: { label: 'Couettes', back: CAP + '<path d="M 52 60 C 20 56, 12 110, 28 150 C 36 126, 44 102, 56 88 Z" ' + F + '/><path d="M 148 60 C 180 56, 188 110, 172 150 C 164 126, 156 102, 144 88 Z" ' + F + '/>', front: FRONT_LONG + '<circle cx="49" cy="68" r="4" fill="#F2A65A"/><circle cx="151" cy="68" r="4" fill="#F2A65A"/>' },
+    chignon: { label: 'Chignon', back: CAP + '<circle cx="100" cy="12" r="16" ' + F + '/><circle cx="100" cy="12" r="16" fill="none" stroke="#6e5020" stroke-width="1.2" opacity="0.35"/>', front: FRONT_LONG },
+    nattes: { label: 'Nattes', back: CAP, front: [0,1,2,3,4,5].map(i => '<ellipse cx="' + (47 - i * 0.6) + '" cy="' + (106 + i * 12) + '" rx="8" ry="7.5" fill="url(#hairFillBack)"/><ellipse cx="' + (153 + i * 0.6) + '" cy="' + (106 + i * 12) + '" rx="8" ry="7.5" fill="url(#hairFillBack)"/>').join('') + '<circle cx="44" cy="174" r="4" fill="#F2A65A"/><circle cx="156" cy="174" r="4" fill="#F2A65A"/>' + FRONT_LONG },
+    boucles: { label: 'Bouclés', back: [[100,52,48],[60,60,26],[140,60,26],[44,84,22],[156,84,22],[48,112,20],[152,112,20],[76,34,24],[124,34,24],[100,26,26]].map(c => '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + c[2] + '" ' + F + '/>').join(''), front: FRONT_SHORT }
+  };
+  const hairSelect = document.getElementById('hairSelect');
+  function setHair(key) {
+    const hb = document.getElementById('hair-back'), hf = document.getElementById('hair-front');
+    if (!hb || !hf) return;
+    const h = HAIRS[key] || HAIRS.longs;
+    hb.innerHTML = h.back.split('url(#hairFill)').join('url(#hairFillBack)');
+    hf.innerHTML = h.front;
+  }
+  Object.keys(HAIRS).forEach(k => {
+    const o = document.createElement('option');
+    o.value = k;
+    o.textContent = HAIRS[k].label;
+    hairSelect.appendChild(o);
+  });
+  let savedHair = 'longs';
+  try { savedHair = localStorage.getItem('bipbip_hair') || 'longs'; } catch (e) {}
+  if (!HAIRS[savedHair]) savedHair = 'longs';
+  hairSelect.value = savedHair;
+  hairSelect.addEventListener('change', () => {
+    setHair(hairSelect.value);
+    try { localStorage.setItem('bipbip_hair', hairSelect.value); } catch (e) {}
+  });
+
+  // ---------- Têtes ----------
+  const W = '<path class="ear-wave inner" d="M -57 -6 Q -63 1 -57 8" stroke="#F2A65A" stroke-width="2" stroke-linecap="round" fill="none"/><path class="ear-wave outer" d="M -63 -12 Q -72 1 -63 14" stroke="#F2A65A" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/><path class="ear-wave inner" d="M 57 -6 Q 63 1 57 8" stroke="#F2A65A" stroke-width="2" stroke-linecap="round" fill="none"/><path class="ear-wave outer" d="M 63 -12 Q 72 1 63 14" stroke="#F2A65A" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/>';
+  const lens = (w, y, d) => 'M ' + (-w) + ' ' + y + ' Q 0 ' + (y + d) + ' ' + w + ' ' + y + ' Z';
+  const mouthEl = c => '<path id="mouth" d="' + lens(c.w, c.y, 7) + '" fill="' + c.fill + '" stroke="' + c.stroke + '" stroke-width="' + c.sw + '" stroke-linejoin="round"/>';
+  const HEADS = {
+    visiere: { label: 'Visière', mouth: { w: 9, y: 24, fill: '#3a4266', stroke: '#7b86a8', sw: 3 },
+      art: m => '<g class="antenna-tip"><rect x="-46" y="-8" width="8" height="18" rx="4" fill="#4de3ff"/><rect x="38" y="-8" width="8" height="18" rx="4" fill="#4de3ff"/></g>' + W +
+        '<ellipse rx="38" ry="44" fill="#f4f6fb" stroke="#c9cfdd" stroke-width="1.5"/><path d="M -18 -36 Q 0 -42 18 -36" stroke="#c9cfdd" stroke-width="2" stroke-linecap="round" fill="none"/><rect x="-34" y="-16" width="68" height="28" rx="14" fill="#10142b"/>' +
+        '<g id="eye-l"><path d="M -23 0 Q -15 -11 -7 0" stroke="#4de3ff" stroke-width="4.5" stroke-linecap="round" fill="none"/></g><g id="eye-r"><path d="M 7 0 Q 15 -11 23 0" stroke="#4de3ff" stroke-width="4.5" stroke-linecap="round" fill="none"/></g>' + m },
+    orbe: { label: 'Orbe', body: false, mouth: { w: 11, y: 18, fill: '#06323f', stroke: '#4de3ff', sw: 3.5 },
+      art: m => '<ellipse cy="-2" rx="54" ry="12" fill="none" stroke="#8a7bff" stroke-width="2.5"/><circle r="40" fill="#10142b"/><path d="M -24 -26 Q -14 -34 0 -35" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.35"/>' +
+        '<g id="eye-l"><ellipse cx="-15" cy="-4" rx="7" ry="10" fill="#4de3ff"/><circle cx="-13" cy="-8" r="2.4" fill="#fff"/></g><g id="eye-r"><ellipse cx="15" cy="-4" rx="7" ry="10" fill="#4de3ff"/><circle cx="17" cy="-8" r="2.4" fill="#fff"/></g>' + m },
+    neon: { label: 'Néon', mouth: { w: 14, y: 18, fill: '#10142b', stroke: '#ff5fd2', sw: 4 },
+      art: m => '<g class="antenna-line"><path d="M -30 -36 L -38 -48 M 30 -36 L 38 -48" stroke="#ff5fd2" stroke-width="3" stroke-linecap="round"/></g>' + W +
+        '<rect x="-42" y="-36" width="84" height="76" rx="26" fill="#10142b" stroke="#4de3ff" stroke-width="3"/>' +
+        '<g id="eye-l"><circle cx="-16" cy="-6" r="11" fill="none" stroke="#4de3ff" stroke-width="3"/><circle cx="-16" cy="-6" r="4" fill="#ff5fd2"/></g><g id="eye-r"><circle cx="16" cy="-6" r="11" fill="none" stroke="#4de3ff" stroke-width="3"/><circle cx="16" cy="-6" r="4" fill="#ff5fd2"/></g>' +
+        '<path d="M -32 10 L -26 10 M 26 10 L 32 10" stroke="#ff5fd2" stroke-width="3" stroke-linecap="round"/>' + m },
+    android: { label: 'Android', mouth: { w: 10, y: 26, fill: '#7a1030', stroke: '#e0607f', sw: 3 },
+      art: m => '<rect x="-44" y="-12" width="9" height="28" rx="4" fill="#c9cfdd"/><rect x="35" y="-12" width="9" height="28" rx="4" fill="#c9cfdd"/><g class="antenna-tip"><line x1="-39.5" y1="-6" x2="-39.5" y2="10" stroke="#4de3ff" stroke-width="2"/><line x1="39.5" y1="-6" x2="39.5" y2="10" stroke="#4de3ff" stroke-width="2"/></g>' + W +
+        '<path d="M -34 -20 Q -34 -44 0 -44 Q 34 -44 34 -20 L 34 10 Q 34 40 0 46 Q -34 40 -34 10 Z" fill="#f4f6fb" stroke="#c9cfdd" stroke-width="1.5"/><path d="M -20 -32 Q 0 -38 20 -32" stroke="#c9cfdd" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+        '<g id="eye-l"><path d="M -25 -4 Q -15 -13 -5 -4 Q -15 4 -25 -4 Z" fill="#fff" stroke="#8a93b0" stroke-width="1.5"/><circle cx="-15" cy="-4" r="4.5" fill="#4de3ff"/><circle cx="-15" cy="-4" r="2" fill="#10142b"/></g>' +
+        '<g id="eye-r"><path d="M 5 -4 Q 15 -13 25 -4 Q 15 4 5 -4 Z" fill="#fff" stroke="#8a93b0" stroke-width="1.5"/><circle cx="15" cy="-4" r="4.5" fill="#4de3ff"/><circle cx="15" cy="-4" r="2" fill="#10142b"/></g>' +
+        '<path d="M -26 -14 Q -15 -19 -5 -14 M 5 -14 Q 15 -19 26 -14" stroke="#8a93b0" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M 0 4 L -2 12 L 2 12" stroke="#c9cfdd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+        '<ellipse cx="-24" cy="14" rx="6" ry="3.5" fill="#ff8fae" opacity="0.5"/><ellipse cx="24" cy="14" rx="6" ry="3.5" fill="#ff8fae" opacity="0.5"/>' + m },
+    cyclope: { label: 'Cyclope', mouth: { w: 12, y: 24, fill: '#7a1030', stroke: '#12172e', sw: 3 },
+      art: m => '<g class="antenna-line"><path d="M 0 -34 L -5 -41 L 5 -47 L -5 -53 L 0 -57" stroke="#b9b4a6" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cy="-60" r="4" fill="#F2A65A"/></g><rect x="-52" y="-12" width="10" height="26" rx="5" fill="#F2A65A"/><rect x="42" y="-12" width="10" height="26" rx="5" fill="#F2A65A"/>' + W +
+        '<rect x="-42" y="-34" width="84" height="76" rx="34" fill="#c9d4f0" stroke="#8f9ccb" stroke-width="1"/><g id="eye-l"><circle cy="-6" r="19" fill="#fff"/><circle cy="-5" r="12" fill="#2f8fe0"/><circle cy="-5" r="6" fill="#12172e"/><circle cx="4" cy="-10" r="3" fill="#fff"/></g>' +
+        '<ellipse cx="-27" cy="16" rx="6" ry="3.5" fill="#ff8fae" opacity="0.6"/><ellipse cx="27" cy="16" rx="6" ry="3.5" fill="#ff8fae" opacity="0.6"/>' + m },
+    lunettes: { label: 'Lunettes', mouth: { w: 12, y: 20, fill: '#7a1030', stroke: '#12172e', sw: 3 },
+      art: m => '<rect x="-38" y="-32" width="76" height="72" rx="28" fill="#F3EFE4" stroke="#b9b4a6" stroke-width="1"/><path d="M -43 -6 Q -43 -52 0 -52 Q 43 -52 43 -6" stroke="#F2A65A" stroke-width="6" fill="none" stroke-linecap="round"/><rect x="-52" y="-14" width="15" height="30" rx="6" fill="#F2A65A"/><rect x="37" y="-14" width="15" height="30" rx="6" fill="#F2A65A"/>' + W +
+        '<circle cx="-16" cy="-2" r="12" fill="#fff" stroke="#232951" stroke-width="3"/><circle cx="16" cy="-2" r="12" fill="#fff" stroke="#232951" stroke-width="3"/><line x1="-4" y1="-2" x2="4" y2="-2" stroke="#232951" stroke-width="3"/>' +
+        '<g id="eye-l"><circle cx="-15" cy="-1" r="4.5" fill="#12172e"/><circle cx="-13.5" cy="-3" r="1.5" fill="#fff"/></g><g id="eye-r"><circle cx="17" cy="-1" r="4.5" fill="#12172e"/><circle cx="18.5" cy="-3" r="1.5" fill="#fff"/></g>' + m },
+    papy: { label: 'Papy', mouth: { w: 8, y: 25, fill: '#7a1030', stroke: '#12172e', sw: 2.5 },
+      art: m => '<circle cx="-43" cy="-8" r="9" fill="#d6d6d6"/><circle cx="43" cy="-8" r="9" fill="#d6d6d6"/><circle cx="-38" cy="-24" r="8" fill="#d6d6d6"/><circle cx="38" cy="-24" r="8" fill="#d6d6d6"/>' + W +
+        '<ellipse cy="2" rx="42" ry="40" fill="#F3EFE4" stroke="#b9b4a6" stroke-width="1"/><circle cx="-15" cy="-8" r="10" fill="none" stroke="#232951" stroke-width="2.5"/><circle cx="15" cy="-8" r="10" fill="none" stroke="#232951" stroke-width="2.5"/><line x1="-5" y1="-8" x2="5" y2="-8" stroke="#232951" stroke-width="2.5"/>' +
+        '<g id="eye-l"><circle cx="-15" cy="-7" r="3.5" fill="#12172e"/></g><g id="eye-r"><circle cx="15" cy="-7" r="3.5" fill="#12172e"/></g>' +
+        '<path d="M -17 14 Q -8 8 0 14 Q 8 8 17 14 Q 8 22 0 16 Q -8 22 -17 14 Z" fill="#9a9aa3"/>' + m },
+    ampoule: { label: 'Ampoule', mouth: { w: 11, y: 10, fill: '#7a1030', stroke: '#12172e', sw: 3 },
+      art: m => '<g class="antenna-line"><path d="M 0 -54 L 0 -64 M -30 -44 L -38 -54 M 30 -44 L 38 -54 M -44 -22 L -54 -26 M 44 -22 L 54 -26" stroke="#F2A65A" stroke-width="3" stroke-linecap="round"/></g>' +
+        '<circle cy="-6" r="38" fill="#fff6c9" stroke="#e0c15a" stroke-width="1.5"/><rect x="-16" y="28" width="32" height="16" rx="3" fill="#b9b4a6"/><line x1="-16" y1="34" x2="16" y2="34" stroke="#8a8d96" stroke-width="1.5"/><line x1="-16" y1="39" x2="16" y2="39" stroke="#8a8d96" stroke-width="1.5"/>' +
+        '<g id="eye-l"><circle cx="-14" cy="-8" r="5" fill="#12172e"/><circle cx="-12.5" cy="-10" r="1.7" fill="#fff"/></g><g id="eye-r"><circle cx="14" cy="-8" r="5" fill="#12172e"/><circle cx="15.5" cy="-10" r="1.7" fill="#fff"/></g>' +
+        '<ellipse cx="-26" cy="6" rx="6" ry="3.5" fill="#ff8fae" opacity="0.55"/><ellipse cx="26" cy="6" rx="6" ry="3.5" fill="#ff8fae" opacity="0.55"/>' + m },
+    grenouille: { label: 'Grenouille', mouth: { w: 26, y: 14, fill: '#7a1030', stroke: '#12172e', sw: 3 },
+      art: m => W + '<ellipse cy="8" rx="46" ry="34" fill="#8fd19e" stroke="#5aa56c" stroke-width="1.5"/><circle cx="-24" cy="-22" r="15" fill="#8fd19e" stroke="#5aa56c" stroke-width="1.5"/><circle cx="24" cy="-22" r="15" fill="#8fd19e" stroke="#5aa56c" stroke-width="1.5"/>' +
+        '<g id="eye-l"><circle cx="-24" cy="-22" r="10" fill="#fff"/><circle cx="-23" cy="-21" r="5" fill="#12172e"/><circle cx="-21" cy="-24" r="1.7" fill="#fff"/></g><g id="eye-r"><circle cx="24" cy="-22" r="10" fill="#fff"/><circle cx="25" cy="-21" r="5" fill="#12172e"/><circle cx="27" cy="-24" r="1.7" fill="#fff"/></g>' +
+        '<circle cx="-38" cy="14" r="3" fill="#F2A65A"/><circle cx="38" cy="14" r="3" fill="#F2A65A"/><ellipse cx="-32" cy="2" rx="6" ry="3.5" fill="#ff8fae" opacity="0.6"/><ellipse cx="32" cy="2" rx="6" ry="3.5" fill="#ff8fae" opacity="0.6"/>' + m },
+    holo: { label: 'Hologramme', body: false, mouth: { w: 12, y: 14, fill: '#0b5d73', stroke: '#19b8dd', sw: 3.5 },
+      art: m => '<circle r="40" fill="none" stroke="#19b8dd" stroke-width="2" stroke-dasharray="5 3"/><circle r="30" fill="none" stroke="#19b8dd" stroke-width="1" opacity="0.5"/>' +
+        '<path d="M -32 -24 L 32 -24 M -37 -16 L 37 -16 M -39 -8 L 39 -8 M -40 0 L 40 0 M -39 8 L 39 8 M -37 16 L 37 16 M -32 24 L 32 24" stroke="#19b8dd" stroke-width="1" opacity="0.3"/>' +
+        '<g id="eye-l"><circle cx="-15" cy="-8" r="7" fill="#19b8dd"/><circle cx="-13" cy="-10" r="2" fill="#fff"/></g><g id="eye-r"><circle cx="15" cy="-8" r="7" fill="#19b8dd"/><circle cx="17" cy="-10" r="2" fill="#fff"/></g>' +
+        '<ellipse cy="52" rx="26" ry="5" fill="none" stroke="#19b8dd" stroke-width="2"/>' + m }
+  };
+  HEADS.portrait = { label: 'Portrait', body: false,
+    closed: "M 86 131 Q 100 136 114 131 Z",
+    shapes: ["M 86 129 Q 100 150 114 129 Z", "M 88 130 Q 100 141 112 130 Z", "M 86 131 Q 100 136 114 131 Z", "M 89 129 Q 100 145 111 129 Z"],
+    art: m => '<g transform="scale(0.689655) translate(-100,-104)">' + `
+        <defs>
+          <linearGradient id="skinFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f8d9c2"/>
+            <stop offset="100%" stop-color="#eeb999"/>
+          </linearGradient>
+          <linearGradient id="hairFillBack" gradientUnits="userSpaceOnUse" x1="0" y1="12" x2="0" y2="200">
+            <stop offset="0%" stop-color="#c9a05a"/>
+            <stop offset="100%" stop-color="#8a6a30"/>
+          </linearGradient>
+          <linearGradient id="hairFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a05a"/>
+            <stop offset="100%" stop-color="#8a6a30"/>
+          </linearGradient>
+        </defs>
+
+        <!-- hair back -->
+        <g id="hair-back"></g>
+
+        <!-- shoulders + top -->
+        <path d="M 22 200 C 26 176, 66 166, 84 162 L 116 162 C 134 166, 174 176, 178 200 Z" fill="url(#skinFill)"/>
+        <path d="M 22 200 L 28 184 C 58 174 82 190 100 198 C 118 190 142 174 172 184 L 178 200 Z" fill="#8e2a52"/>
+        <path d="M 78 176 Q 90 180 98 178 M 122 176 Q 110 180 102 178" stroke="#d9a58a" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.8"/>
+
+        <!-- neck -->
+        <path d="M 86 136 L 86 166 C 92 176 108 176 114 166 L 114 136 Z" fill="url(#skinFill)"/>
+        <path d="M 86 150 Q 100 162 114 150 L 114 140 L 86 140 Z" fill="#d9a58a" opacity="0.45"/>
+
+        <!-- earrings + sound waves -->
+        <circle cx="56" cy="112" r="3.5" fill="#F2A65A" class="antenna-tip"/>
+        <circle cx="56" cy="121" r="2.6" fill="#F2A65A" class="antenna-tip"/>
+        <circle cx="144" cy="112" r="3.5" fill="#F2A65A" class="antenna-tip"/>
+        <circle cx="144" cy="121" r="2.6" fill="#F2A65A" class="antenna-tip"/>
+        <path class="ear-wave inner" d="M 42 100 Q 34 112 42 124" stroke="#F2A65A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path class="ear-wave outer" d="M 35 94 Q 22 112 35 130" stroke="#F2A65A" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+        <path class="ear-wave inner" d="M 158 100 Q 166 112 158 124" stroke="#F2A65A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path class="ear-wave outer" d="M 165 94 Q 178 112 165 130" stroke="#F2A65A" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+
+        <!-- face -->
+        <path d="M 56 84 C 56 52, 76 38, 100 38 C 124 38, 144 52, 144 84 C 144 118, 126 146, 100 148 C 74 146, 56 118, 56 84 Z" fill="url(#skinFill)"/>
+
+        <!-- blush -->
+        <ellipse cx="68" cy="114" rx="11" ry="6" fill="#ff7a9c" opacity="0.35"/>
+        <ellipse cx="132" cy="114" rx="11" ry="6" fill="#ff7a9c" opacity="0.35"/>
+
+        <!-- eyebrows -->
+        <path d="M 62 80 Q 76 70 91 77" stroke="#6e5020" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M 109 77 Q 124 65 138 79" stroke="#6e5020" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+        <!-- eyes -->
+        <g id="eye-l">
+          <path d="M 64 95 Q 77 83 91 95 Q 77 104 64 95 Z" fill="#fff"/>
+          <circle cx="77.5" cy="94" r="6" fill="#2f8fe0"/>
+          <circle cx="77.5" cy="94" r="3" fill="#1a1020"/>
+          <circle cx="79.5" cy="92" r="1.5" fill="#fff"/>
+          <path d="M 64 95 Q 77 83 91 95 Q 77 90 64 95 Z" fill="#f4cfb4"/>
+          <path d="M 62 96 Q 77 82 92 95" stroke="#1a1020" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M 62 96 L 57 91 M 66 90 L 63 85 M 74 86 L 73 81" stroke="#1a1020" stroke-width="2" stroke-linecap="round"/>
+        </g>
+        <g id="eye-r">
+          <path d="M 109 95 Q 123 83 136 95 Q 123 104 109 95 Z" fill="#fff"/>
+          <circle cx="122.5" cy="94" r="6" fill="#2f8fe0"/>
+          <circle cx="122.5" cy="94" r="3" fill="#1a1020"/>
+          <circle cx="124.5" cy="92" r="1.5" fill="#fff"/>
+          <path d="M 109 95 Q 123 83 136 95 Q 123 90 109 95 Z" fill="#f4cfb4"/>
+          <path d="M 108 95 Q 123 82 138 96" stroke="#1a1020" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M 138 96 L 143 91 M 134 90 L 137 85 M 126 86 L 127 81" stroke="#1a1020" stroke-width="2" stroke-linecap="round"/>
+        </g>
+
+        <!-- nose + beauty mark -->
+        <path d="M 97 108 Q 100 114 104 109" stroke="#c98f73" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <circle cx="116" cy="127" r="1.3" fill="#7a4a1a"/>
+
+        <!-- mouth -->
+        <path id="mouth" d="M 86 131 Q 100 136 114 131 Z" fill="#7a1030" stroke="#d6336c" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M 95 133 Q 100 135 105 133" stroke="#fff" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.0"/>
+
+        <!-- hair front -->
+        <g id="hair-front"></g>
+      ` + '</g>' };
+  Object.keys(HEADS).forEach(k => {
+    const h = HEADS[k], c = h.mouth;
+    if (!h.closed) {
+      h.closed = lens(c.w, c.y, 7);
+      h.shapes = [lens(c.w, c.y, 28), lens(c.w, c.y, 16), lens(c.w, c.y, 7), lens(c.w, c.y, 22)];
+    }
+    h.html = h.art(c ? mouthEl(c) : '');
+  });
+  const bodyArt = document.getElementById('body-art');
+  const headArt = document.getElementById('head-art');
+  const headSelect = document.getElementById('headSelect');
+  function setHead(key) {
+    const h = HEADS[key] || HEADS.visiere;
+    headArt.innerHTML = h.html;
+    mouth = document.getElementById('mouth');
+    curClosed = h.closed;
+    curShapes = h.shapes;
+    bodyArt.style.display = h.body === false ? 'none' : '';
+    const isPortrait = (HEADS[key] === HEADS.portrait);
+    botName = isPortrait ? 'Lou' : 'Bip bip';
+    document.getElementById('botTitle').textContent = botName;
+    document.title = botName;
+    hairSelect.style.display = isPortrait ? '' : 'none';
+    if (isPortrait) setHair(hairSelect.value);
+  }
+  Object.keys(HEADS).forEach(k => {
+    const o = document.createElement('option');
+    o.value = k;
+    o.textContent = HEADS[k].label;
+    headSelect.appendChild(o);
+  });
+  let savedHead = 'visiere';
+  try { savedHead = localStorage.getItem('bipbip_head') || 'visiere'; } catch (e) {}
+  if (!HEADS[savedHead]) savedHead = 'visiere';
+  headSelect.value = savedHead;
+  setHead(savedHead);
+  headSelect.addEventListener('change', () => {
+    setHead(headSelect.value);
+    try { localStorage.setItem('bipbip_head', headSelect.value); } catch (e) {}
   });
 
   function getSelectedVoice() {
@@ -863,7 +1093,6 @@
   }
 
   // ---------- Minuteur / chronomètre ----------
-  let stopwatchStart = null;
   let timerTitleInterval = null;
 
   function tryHandleTimer(text) {
@@ -878,7 +1107,7 @@
       clearInterval(timerTitleInterval);
       timerTitleInterval = setInterval(() => {
         const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
-        document.title = remaining > 0 ? '⏱ ' + remaining + 's - Bipbip' : 'Bipbip';
+        document.title = remaining > 0 ? '⏱ ' + remaining + 's - ' + botName : botName;
         if (remaining <= 0) clearInterval(timerTitleInterval);
       }, 1000);
       setTimeout(() => {
@@ -887,42 +1116,13 @@
         history.push({ role: 'assistant', content: msg });
         saveHistory();
         speak(msg);
-        document.title = 'Bipbip';
+        document.title = botName;
       }, ms);
       const confirmText = 'Minuteur lancé pour ' + amount + ' ' + unit + '.';
       addBubble('bot', confirmText);
       history.push({ role: 'assistant', content: confirmText });
       saveHistory();
       speak(confirmText);
-      return true;
-    }
-
-    if (/démarre(?: le)? chronomètre|lance(?: le)? chronomètre/.test(lower)) {
-      stopwatchStart = Date.now();
-      const confirmText = 'Chronomètre démarré.';
-      addBubble('bot', confirmText);
-      history.push({ role: 'assistant', content: confirmText });
-      saveHistory();
-      speak(confirmText);
-      return true;
-    }
-
-    if (/arrête(?: le)? chronomètre|stop(?:pe)?(?: le)? chronomètre/.test(lower)) {
-      if (!stopwatchStart) {
-        const msg = "Le chronomètre n'a pas été démarré.";
-        addBubble('bot', msg);
-        history.push({ role: 'assistant', content: msg });
-        saveHistory();
-        speak(msg);
-        return true;
-      }
-      const elapsedSec = Math.round((Date.now() - stopwatchStart) / 1000);
-      stopwatchStart = null;
-      const msg = 'Chronomètre arrêté : ' + elapsedSec + ' secondes écoulées.';
-      addBubble('bot', msg);
-      history.push({ role: 'assistant', content: msg });
-      saveHistory();
-      speak(msg);
       return true;
     }
 
@@ -1036,9 +1236,993 @@
     return true;
   }
 
+  // ---------- Fonctions bonus ----------
+  function botReply(msg, spoken) {
+    addBubble('bot', msg);
+    history.push({ role: 'assistant', content: msg });
+    saveHistory();
+    speak(spoken || msg);
+    return true;
+  }
+  function norm(s) {
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’‘]/g, "'").trim();
+  }
+  function pick(arr, rnd) { return arr[Math.floor((rnd ? rnd() : Math.random()) * arr.length)]; }
+  function fmtN(n) { return n.toLocaleString('fr-FR', { maximumFractionDigits: 2 }); }
+
+  // ----- 1. Heure et date -----
+  const TIME_ZONES = {
+    'paris': ['Europe/Paris', 'à Paris'], 'tokyo': ['Asia/Tokyo', 'à Tokyo'],
+    'new york': ['America/New_York', 'à New York'], 'londres': ['Europe/London', 'à Londres'],
+    'los angeles': ['America/Los_Angeles', 'à Los Angeles'], 'chicago': ['America/Chicago', 'à Chicago'],
+    'miami': ['America/New_York', 'à Miami'], 'dubai': ['Asia/Dubai', 'à Dubaï'],
+    'montreal': ['America/Toronto', 'à Montréal'], 'pekin': ['Asia/Shanghai', 'à Pékin'],
+    'shanghai': ['Asia/Shanghai', 'à Shanghai'], 'hong kong': ['Asia/Hong_Kong', 'à Hong Kong'],
+    'sydney': ['Australia/Sydney', 'à Sydney'], 'moscou': ['Europe/Moscow', 'à Moscou'],
+    'madrid': ['Europe/Madrid', 'à Madrid'], 'berlin': ['Europe/Berlin', 'à Berlin'],
+    'rome': ['Europe/Rome', 'à Rome'], 'casablanca': ['Africa/Casablanca', 'à Casablanca'],
+    'alger': ['Africa/Algiers', 'à Alger'], 'tunis': ['Africa/Tunis', 'à Tunis'],
+    'dakar': ['Africa/Dakar', 'à Dakar'], 'abidjan': ['Africa/Abidjan', 'à Abidjan'],
+    'istanbul': ['Europe/Istanbul', 'à Istanbul'], 'delhi': ['Asia/Kolkata', 'à Delhi'],
+    'seoul': ['Asia/Seoul', 'à Séoul'], 'bangkok': ['Asia/Bangkok', 'à Bangkok'],
+    'singapour': ['Asia/Singapore', 'à Singapour'], 'sao paulo': ['America/Sao_Paulo', 'à São Paulo'],
+    'mexico': ['America/Mexico_City', 'à Mexico'], 'le caire': ['Africa/Cairo', 'au Caire'],
+    'beyrouth': ['Asia/Beirut', 'à Beyrouth']
+  };
+  function tryHandleTime(text) {
+    const t = norm(text).replace(/[?!.]+$/, '').trim();
+    if (/^(quel jour (sommes[- ]nous|est[- ]on|on est)|quelle est la date|on est quel jour|quelle date (sommes[- ]nous|est[- ]on|on est))/.test(t)) {
+      const d = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      return botReply('Nous sommes le ' + d + '.');
+    }
+    if (!/^(quelle heure|il est quelle heure|donne[- ]moi l'heure|dis[- ]moi l'heure|l'heure)/.test(t)) return false;
+    const city = Object.keys(TIME_ZONES).sort((a, b) => b.length - a.length).find(n => t.includes(n));
+    const rest = t.replace(/^(quelle heure est[- ]il|quelle heure|il est quelle heure|donne[- ]moi l'heure|dis[- ]moi l'heure|l'heure)/, '');
+    if (!city && /(?:^|\s)(?:a|au|en)\s+\S+/.test(rest) && !/maintenant|ce moment/.test(rest)) {
+      return botReply("Je ne connais pas cette ville. Essaie une grande ville, comme Tokyo ou New York.");
+    }
+    const opts = { hour: 'numeric', minute: '2-digit', hourCycle: 'h23' };
+    if (city) opts.timeZone = TIME_ZONES[city][0];
+    const [h, m] = new Intl.DateTimeFormat('fr-FR', opts).format(new Date()).split(':');
+    const hh = parseInt(h, 10);
+    const timeStr = hh + ' h' + (m === '00' ? '' : ' ' + m);
+    return botReply('Il est ' + timeStr + (city ? ' ' + TIME_ZONES[city][1] : '') + '.');
+  }
+
+  // ----- 2. Blagues et citations -----
+  const JOKES = [
+    "Pourquoi les plongeurs plongent-ils toujours en arrière ? Parce que sinon ils tombent dans le bateau.",
+    "Que dit une imprimante dans l'eau ? J'ai papier.",
+    "Quel est le comble pour un électricien ? De ne pas être au courant.",
+    "Pourquoi les poissons n'aiment pas jouer au tennis ? Parce qu'ils ont peur du filet.",
+    "Que fait une fraise sur un cheval ? Tagada, tagada.",
+    "Quel est le comble pour un jardinier ? De raconter des salades.",
+    "Qu'est-ce qui est jaune et qui attend ? Jonathan.",
+    "Quel est le comble pour un boulanger ? De ne pas avoir de pain sur la planche.",
+    "Pourquoi les mathématiciens aiment les forêts ? Parce qu'il y a plein de racines.",
+    "Que dit un escargot quand il croise une limace ? Regarde, un nudiste !",
+    "Comment appelle-t-on un chien sans pattes ? On ne l'appelle pas, on va le chercher.",
+    "Pourquoi les oiseaux volent vers le sud ? Parce que c'est trop loin pour y aller à pied.",
+    "Qu'est-ce qu'un crocodile qui surveille la piscine ? Un Lacoste garde.",
+    "Que dit un vampire quand on lui offre un cadeau ? Merci, c'est trop sang-pathique.",
+    "Pourquoi le livre de maths est-il triste ? Parce qu'il a trop de problèmes."
+  ];
+  const QUOTES = [
+    "« Je pense, donc je suis. » — Descartes",
+    "« Rien n'est permanent, sauf le changement. » — Héraclite",
+    "« Connais-toi toi-même. » — Inscription du temple de Delphes",
+    "« On ne voit bien qu'avec le cœur. L'essentiel est invisible pour les yeux. » — Saint-Exupéry",
+    "« Un voyage de mille lieues commence toujours par un premier pas. » — Lao Tseu",
+    "« Ce qui ne me tue pas me rend plus fort. » — Nietzsche",
+    "« L'imagination est plus importante que le savoir. » — Einstein",
+    "« Il faut cultiver notre jardin. » — Voltaire",
+    "« Rien ne sert de courir ; il faut partir à point. » — La Fontaine",
+    "« Je ne perds jamais : soit je gagne, soit j'apprends. » — Nelson Mandela",
+    "« La simplicité est la sophistication suprême. » — Léonard de Vinci"
+  ];
+  function tryHandleJokeQuote(text) {
+    const t = norm(text);
+    if (t.length > 45) return false;
+    if (/\bblagues?\b/.test(t)) return botReply(pick(JOKES));
+    if (/\bcitations?\b/.test(t)) return botReply(pick(QUOTES));
+    return false;
+  }
+
+  // ----- 3. Notes -----
+  function getNotes() {
+    try { return JSON.parse(localStorage.getItem('bipbip_notes') || '[]'); } catch (e) { return []; }
+  }
+  function setNotes(n) {
+    try { localStorage.setItem('bipbip_notes', JSON.stringify(n)); } catch (e) {}
+  }
+  function tryHandleNotes(text) {
+    const t = norm(text).replace(/[?!.]+$/, '').trim();
+    if (/^(efface|supprime|vide)\s+(toutes\s+)?(mes|les)\s+notes$/.test(t)) {
+      setNotes([]);
+      return botReply("C'est fait, j'ai effacé toutes tes notes.");
+    }
+    if (/^((lis|lire|montre|affiche|donne)(-moi)?\s+)?(mes|les)\s+notes$/.test(t)) {
+      const notes = getNotes();
+      if (!notes.length) return botReply("Tu n'as aucune note pour le moment.");
+      const list = notes.map((n, i) => (i + 1) + '. ' + n).join('\n');
+      return botReply('Tes notes :\n' + list, 'Voici tes notes. ' + notes.join('. '));
+    }
+    const m = text.trim().match(/^(?:note[- ]moi|ajoute (?:une )?note|prends (?:une )?note|note\s*:|note que)\s*:?\s*(?:que\s+)?(.+)$/i);
+    if (m) {
+      const notes = getNotes();
+      notes.push(m[1].trim());
+      setNotes(notes);
+      return botReply("Noté : " + m[1].trim());
+    }
+    return false;
+  }
+
+  // ----- 5. Conversion d'unités -----
+  const UNITS = [
+    { al: ['kilometres', 'kilometre', 'km'], t: 'len', f: 1000, label: 'kilomètres' },
+    { al: ['metres', 'metre', 'm'], t: 'len', f: 1, label: 'mètres' },
+    { al: ['centimetres', 'centimetre', 'cm'], t: 'len', f: 0.01, label: 'centimètres' },
+    { al: ['millimetres', 'millimetre', 'mm'], t: 'len', f: 0.001, label: 'millimètres' },
+    { al: ['miles', 'mile'], t: 'len', f: 1609.344, label: 'miles' },
+    { al: ['pieds', 'pied', 'ft'], t: 'len', f: 0.3048, label: 'pieds' },
+    { al: ['pouces', 'pouce', 'inches', 'inch'], t: 'len', f: 0.0254, label: 'pouces' },
+    { al: ['yards', 'yard'], t: 'len', f: 0.9144, label: 'yards' },
+    { al: ['kilos', 'kilo', 'kilogrammes', 'kilogramme', 'kg'], t: 'mass', f: 1, label: 'kilos' },
+    { al: ['grammes', 'gramme', 'g'], t: 'mass', f: 0.001, label: 'grammes' },
+    { al: ['livres', 'livre', 'lb', 'lbs'], t: 'mass', f: 0.45359237, label: 'livres' },
+    { al: ['onces', 'once', 'oz'], t: 'mass', f: 0.028349523, label: 'onces' },
+    { al: ['litres', 'litre', 'l'], t: 'vol', f: 1, label: 'litres' },
+    { al: ['millilitres', 'millilitre', 'ml'], t: 'vol', f: 0.001, label: 'millilitres' },
+    { al: ['gallons', 'gallon'], t: 'vol', f: 3.785411784, label: 'gallons' },
+    { al: ['km/h', 'kmh'], t: 'speed', f: 1 / 3.6, label: 'km/h' },
+    { al: ['mph'], t: 'speed', f: 0.44704, label: 'mph' },
+    { al: ['noeuds', 'noeud'], t: 'speed', f: 0.514444, label: 'nœuds' },
+    { al: ['degres celsius', 'degre celsius', 'degres c', '°c', 'celsius'], t: 'temp', k: 'C', label: '°C' },
+    { al: ['degres fahrenheit', 'degre fahrenheit', 'degres f', '°f', 'fahrenheit'], t: 'temp', k: 'F', label: '°F' },
+    { al: ['kelvins', 'kelvin'], t: 'temp', k: 'K', label: 'K' }
+  ];
+  const UNIT_ALIASES = [];
+  UNITS.forEach(u => u.al.forEach(a => UNIT_ALIASES.push([a, u])));
+  UNIT_ALIASES.sort((a, b) => b[0].length - a[0].length);
+  const UNIT_RE = new RegExp(
+    '(-?\\d+(?:[.,]\\d+)?)\\s*(' + UNIT_ALIASES.map(a => a[0].replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&')).join('|') + ')\\s+(?:en|vers)\\s+(' +
+    UNIT_ALIASES.map(a => a[0].replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&')).join('|') + ')(?![a-z/°])'
+  );
+  function tryHandleConversion(text) {
+    const t = norm(text);
+    const m = t.match(UNIT_RE);
+    if (!m) return false;
+    const val = parseFloat(m[1].replace(',', '.'));
+    const from = UNIT_ALIASES.find(a => a[0] === m[2])[1];
+    const to = UNIT_ALIASES.find(a => a[0] === m[3])[1];
+    if (from.t !== to.t) return botReply("Je ne peux pas convertir ces deux unités entre elles.");
+    let res;
+    if (from.t === 'temp') {
+      let c = from.k === 'C' ? val : from.k === 'F' ? (val - 32) * 5 / 9 : val - 273.15;
+      res = to.k === 'C' ? c : to.k === 'F' ? c * 9 / 5 + 32 : c + 273.15;
+    } else {
+      res = val * from.f / to.f;
+    }
+    return botReply(fmtN(val) + ' ' + from.label + ' = ' + fmtN(res) + ' ' + to.label + '.');
+  }
+
+  // ----- 6. Horoscope (du jour, pour s'amuser) -----
+  const SIGNS = ['belier', 'taureau', 'gemeaux', 'cancer', 'lion', 'vierge', 'balance', 'scorpion', 'sagittaire', 'capricorne', 'verseau', 'poissons'];
+  const SIGN_LABELS = { belier: 'Bélier', taureau: 'Taureau', gemeaux: 'Gémeaux', cancer: 'Cancer', lion: 'Lion', vierge: 'Vierge', balance: 'Balance', scorpion: 'Scorpion', sagittaire: 'Sagittaire', capricorne: 'Capricorne', verseau: 'Verseau', poissons: 'Poissons' };
+  const HORO = {
+    humeur: ["Ta journée s'annonce pleine d'énergie.", "Une belle surprise pourrait arriver en fin de journée.", "Tu seras particulièrement charismatique aujourd'hui.", "Prends ton temps, la sérénité est de ton côté.", "Ton intuition sera très fine, fais-lui confiance.", "Les astres t'invitent à sortir de ta zone de confort."],
+    amour: ["En amour, un échange sincère va rapprocher les cœurs.", "En amour, un regard ou un message pourrait tout changer.", "Côté cœur, la complicité sera au rendez-vous.", "Côté cœur, évite les non-dits et parle franchement.", "En amour, une rencontre inattendue est possible.", "Côté cœur, offre-toi un moment rien que pour toi."],
+    travail: ["Au travail, une de tes idées sera remarquée.", "Au travail, la patience va payer.", "Côté travail, une bonne nouvelle se profile.", "Côté travail, organise-toi et tout se déroulera bien.", "Au travail, un coup de main te sera proposé, accepte-le.", "Côté travail, ose proposer ton projet."],
+    conseil: ["Mon conseil : souris, ça marche toujours.", "Mon conseil : bois un grand verre d'eau et respire.", "Mon conseil : fais confiance à ton instinct.", "Mon conseil : remercie quelqu'un aujourd'hui.", "Mon conseil : avance sans te presser.", "Mon conseil : garde du temps pour te détendre."]
+  };
+  function seededRng(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    let a = h >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function tryHandleHoroscope(text) {
+    const t = norm(text);
+    if (!/horoscope/.test(t)) return false;
+    const sign = SIGNS.find(s => new RegExp('\\b' + s + '\\b').test(t));
+    if (!sign) return botReply("De quel signe es-tu ? Dis par exemple : horoscope lion.");
+    const today = new Date();
+    const rnd = seededRng(sign + today.getFullYear() + '-' + today.getMonth() + '-' + today.getDate());
+    const msg = 'Horoscope du jour pour ' + SIGN_LABELS[sign] + ' : ' +
+      pick(HORO.humeur, rnd) + ' ' + pick(HORO.amour, rnd) + ' ' + pick(HORO.travail, rnd) + ' ' +
+      pick(HORO.conseil, rnd) + ' Ton chiffre porte-bonheur : ' + (1 + Math.floor(rnd() * 9)) + '.';
+    return botReply(msg);
+  }
+
+  // ----- 7. Fêtes et jours fériés -----
+  function easterDate(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+    const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, month - 1, day);
+  }
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function holidaysFor(y) {
+    const easter = easterDate(y);
+    const pentecost = addDays(easter, 49);
+    let mothers = new Date(y, 4, 31 - new Date(y, 4, 31).getDay());
+    if (mothers.getTime() === pentecost.getTime()) mothers = new Date(y, 5, 7 - new Date(y, 5, 1).getDay() + 1);
+    const fathers = new Date(y, 5, 1 + (7 - new Date(y, 5, 1).getDay()) % 7 + 14);
+    return [
+      { label: "Le jour de l'An", al: ["jour de l'an", 'nouvel an', '1er janvier'], d: new Date(y, 0, 1), ferie: true },
+      { label: 'La Saint-Valentin', al: ['saint valentin', 'saint-valentin'], d: new Date(y, 1, 14) },
+      { label: 'Pâques', al: ['paques'], d: easter, ferie: false },
+      { label: 'Le lundi de Pâques', al: ['lundi de paques'], d: addDays(easter, 1), ferie: true },
+      { label: 'La fête du Travail', al: ['fete du travail', '1er mai'], d: new Date(y, 4, 1), ferie: true },
+      { label: 'La fête de la Victoire', al: ['victoire', '8 mai'], d: new Date(y, 4, 8), ferie: true },
+      { label: "L'Ascension", al: ['ascension'], d: addDays(easter, 39), ferie: true },
+      { label: 'La fête des mères', al: ['fete des meres'], d: mothers },
+      { label: 'La Pentecôte', al: ['pentecote'], d: pentecost },
+      { label: 'Le lundi de Pentecôte', al: ['lundi de pentecote'], d: addDays(easter, 50), ferie: true },
+      { label: 'La fête des pères', al: ['fete des peres'], d: fathers },
+      { label: 'La fête de la musique', al: ['fete de la musique'], d: new Date(y, 5, 21) },
+      { label: 'La fête nationale', al: ['fete nationale', '14 juillet'], d: new Date(y, 6, 14), ferie: true },
+      { label: "L'Assomption", al: ['assomption', '15 aout'], d: new Date(y, 7, 15), ferie: true },
+      { label: 'Halloween', al: ['halloween'], d: new Date(y, 9, 31) },
+      { label: 'La Toussaint', al: ['toussaint', '1er novembre'], d: new Date(y, 10, 1), ferie: true },
+      { label: "L'Armistice", al: ['armistice', '11 novembre'], d: new Date(y, 10, 11), ferie: true },
+      { label: 'Noël', al: ['noel', '25 decembre'], d: new Date(y, 11, 25), ferie: true },
+      { label: 'Le réveillon du Nouvel An', al: ['reveillon', 'saint sylvestre', 'saint-sylvestre', '31 decembre'], d: new Date(y, 11, 31) }
+    ];
+  }
+  function daysText(n) {
+    if (n === 0) return "c'est aujourd'hui";
+    if (n === 1) return "c'est demain";
+    return 'dans ' + n + ' jours';
+  }
+  function tryHandleHolidays(text) {
+    const t = norm(text).replace(/[?!.]+$/, '');
+    const today = new Date();
+    const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const y = midnight.getFullYear();
+    if (/(jours? feries|prochain(?:s)? (?:jour|conge)s?)/.test(t) && t.length < 60) {
+      const upcoming = holidaysFor(y).concat(holidaysFor(y + 1)).filter(h => h.ferie && h.d >= midnight).slice(0, 5);
+      const lines = upcoming.map(h => h.label + ' : ' + h.d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }));
+      return botReply('Les prochains jours fériés :\n' + lines.join('\n'), 'Les prochains jours fériés sont : ' + lines.join(', ') + '.');
+    }
+    if (!/(quand (?:est|a lieu|tombe|c'est)|c'est quand|combien de jours|dans combien de temps|combien de temps (?:avant|jusqu))/.test(t)) return false;
+    const pairs = [];
+    holidaysFor(y).forEach(h => h.al.forEach(a => pairs.push([a, h.label])));
+    pairs.sort((a, b) => b[0].length - a[0].length);
+    const found = pairs.find(p => t.includes(p[0]));
+    if (!found) return false;
+    let ev = holidaysFor(y).find(h => h.label === found[1]);
+    if (ev.d < midnight) ev = holidaysFor(y + 1).find(h => h.label === found[1]);
+    const n = Math.round((ev.d - midnight) / 86400000);
+    const dateStr = ev.d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return botReply(ev.label + ' tombe le ' + dateStr + ', ' + daysText(n) + '.');
+  }
+
+  // ----- 9. Recette au hasard -----
+  async function trFr(s) {
+    try {
+      const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(s) + '&langpair=en|fr');
+      const d = await r.json();
+      const out = d.responseData && d.responseData.translatedText;
+      if (!out || /MYMEMORY WARNING/i.test(out)) return s;
+      return out;
+    } catch (e) { return s; }
+  }
+  function chunkText(s, max) {
+    const parts = s.replace(/\r?\n+/g, ' ').split(/(?<=[.!?])\s+/);
+    const chunks = [];
+    let cur = '';
+    parts.forEach(p => {
+      if ((cur + ' ' + p).length > max && cur) { chunks.push(cur.trim()); cur = p; }
+      else cur += ' ' + p;
+    });
+    if (cur.trim()) chunks.push(cur.trim());
+    return chunks;
+  }
+  async function tryHandleRecipe(text) {
+    const t = norm(text).replace(/[?!.]+$/, '');
+    if (!/(recette (au )?hasard|^(donne[- ]moi |propose[- ]moi |une )?(une )?recette$|idee de recette|idee repas|quoi manger|que manger|quoi cuisiner|que cuisiner)/.test(t)) return false;
+    addTyping();
+    try {
+      const res = await fetch('https://www.themealdb.com/api/json/v1/1/random.php');
+      const data = await res.json();
+      const meal = data.meals && data.meals[0];
+      if (!meal) throw new Error('vide');
+      const ingredients = [];
+      for (let i = 1; i <= 20; i++) {
+        const ing = (meal['strIngredient' + i] || '').trim();
+        const mea = (meal['strMeasure' + i] || '').trim();
+        if (ing) ingredients.push((mea ? mea + ' ' : '') + ing);
+      }
+      const [name, ingFr] = await Promise.all([trFr(meal.strMeal), trFr(ingredients.join(', '))]);
+      let steps = '';
+      const chunks = chunkText(meal.strInstructions || '', 450).slice(0, 4);
+      if (chunks.length) {
+        const tr = await Promise.all(chunks.map(trFr));
+        steps = tr.join(' ');
+      }
+      removeTyping();
+      const caption = 'Je te propose : ' + name + '.';
+      addImageBubble('bot', caption, [{ thumbnail: meal.strMealThumb, title: name }]);
+      const body = 'Ingrédients : ' + ingFr + (steps ? '\n\nPréparation : ' + steps : '');
+      addBubble('bot', body);
+      history.push({ role: 'assistant', content: caption + ' ' + body });
+      saveHistory();
+      speak(caption);
+    } catch (e) {
+      removeTyping();
+      addBubble('bot', "Je n'ai pas réussi à trouver une recette pour le moment.").classList.add('error');
+    }
+    return true;
+  }
+
+  // ----- Saint du jour -----
+  const SAINTS = [
+    "Marie|Basile|Geneviève|Odilon|Édouard|Mélaine|Raymond|Lucien|Alix|Guillaume|Paulin|Tatiana|Yvette|Nina|Rémi|Marcel|Roseline|Prisca|Marius|Sébastien|Agnès|Vincent|Barnard|François de Sales|Paul|Timothée|Angèle|Thomas d'Aquin|Gildas|Martine|Marcelle",
+    "Ella|Présentation du Seigneur|Blaise|Véronique|Agathe|Gaston|Eugénie|Jacqueline|Apolline|Arnaud|Notre-Dame de Lourdes|Félix|Béatrice|Valentin|Claude|Julienne|Alexis|Bernadette|Gabin|Aimée|Pierre Damien|Isabelle|Lazare|Modeste|Roméo|Nestor|Honorine|Romain|Auguste",
+    "Aubin|Charles le Bon|Guénolé|Casimir|Olive|Colette|Félicité|Jean de Dieu|Françoise|Vivien|Rosine|Justine|Rodrigue|Mathilde|Louise|Bénédicte|Patrick|Cyrille|Joseph|Herbert|Clémence|Léa|Victorien|Karine|Annonciation|Larissa|Habib|Gontran|Gwladys|Amédée|Benjamin",
+    "Hugues|Sandrine|Richard|Isidore|Irène|Marcellin|Jean-Baptiste de la Salle|Julie|Gautier|Fulbert|Stanislas|Jules|Ida|Maxime|Paterne|Benoît-Joseph|Anicet|Parfait|Emma|Odette|Anselme|Alexandre|Georges|Fidèle|Marc|Alida|Zita|Valérie|Catherine de Sienne|Robert",
+    "Jérémie|Boris|Philippe|Sylvain|Judith|Prudence|Gisèle|Désiré|Pacôme|Solange|Estelle|Achille|Rolande|Matthias|Denise|Honoré|Pascal|Éric|Yves|Bernardin|Constantin|Émile|Didier|Donatien|Sophie|Bérenger|Augustin|Germain|Aymar|Ferdinand|Visitation",
+    "Justin|Blandine|Kévin|Clotilde|Igor|Norbert|Gilbert|Médard|Diane|Landry|Barnabé|Guy|Antoine de Padoue|Élisée|Germaine|Jean-François Régis|Hervé|Léonce|Romuald|Silvère|Rodolphe|Alban|Audrey|Jean-Baptiste|Prosper|Anthelme|Fernand|Irénée|Pierre et Paul|Martial",
+    "Thierry|Martinien|Thomas|Florent|Antoine|Mariette|Raoul|Thibaut|Amandine|Ulrich|Benoît|Olivier|Henri et Joël|Camille|Donald|Notre-Dame du Mont-Carmel|Charlotte|Frédéric|Arsène|Marina|Victor|Marie-Madeleine|Brigitte|Christine|Jacques|Anne et Joachim|Nathalie|Samson|Marthe|Juliette|Ignace de Loyola",
+    "Alphonse|Julien Eymard|Lydie|Jean-Marie Vianney|Abel|Transfiguration|Gaétan|Dominique|Amour|Laurent|Claire|Clarisse|Hippolyte|Evrard|Marie (Assomption)|Armel|Hyacinthe|Hélène|Jean Eudes|Bernard|Christophe|Fabrice|Rose de Lima|Barthélemy|Louis|Natacha|Monique|Augustin|Sabine|Fiacre|Aristide",
+    "Gilles|Ingrid|Grégoire|Rosalie|Raïssa|Bertrand|Reine|Nativité de Marie|Alain|Inès|Adelphe|Apollinaire|Aimé|La Croix Glorieuse|Roland|Édith|Renaud|Nadège|Émilie|Davy|Matthieu|Maurice|Constant|Thècle|Hermann|Côme et Damien|Vincent de Paul|Venceslas|Michel|Jérôme",
+    "Thérèse de l'Enfant-Jésus|Léger|Gérard|François d'Assise|Fleur|Bruno|Serge|Pélagie|Denis|Ghislain|Firmin|Wilfried|Géraud|Juste|Thérèse d'Avila|Edwige|Baudouin|Luc|René|Adeline|Céline|Élodie|Jean de Capistran|Florentin|Crépin|Dimitri|Émeline|Simon et Jude|Narcisse|Bienvenue|Quentin",
+    "Toussaint|Défunts|Hubert|Charles|Sylvie|Bertille|Carine|Geoffroy|Théodore|Léon|Martin|Christian|Brice|Sidoine|Albert|Marguerite|Élisabeth|Aude|Tanguy|Edmond|Présentation de Marie|Cécile|Clément|Flora|Catherine|Delphine|Séverin|Jacques de la Marche|Saturnin|André",
+    "Florence|Viviane|François-Xavier|Barbara|Gérald|Nicolas|Ambroise|Immaculée Conception|Pierre Fourier|Romaric|Daniel|Jeanne de Chantal|Lucie|Odile|Ninon|Alice|Gaël|Gatien|Urbain|Théophile|Pierre Canisius|Françoise-Xavière|Armand|Adèle|Noël|Étienne|Jean|Innocents|David|Roger|Sylvestre"
+  ].map(m => m.split('|'));
+  function tryHandleSaint(text) {
+    const t = norm(text).replace(/[?!.]+$/, '').trim();
+    if (t.length > 60) return false;
+    if (!/(saint|sainte|fete|fetes)\s+(du jour|d'aujourd'hui|aujourd'hui|de demain|demain|d'hier|hier)|quel saint|quelle sainte|qui fete[- ](?:t-)?on|qui on fete|on fete qui|qui est fete|quelle fete|c'est quel saint|c'est quelle fete/.test(t)) return false;
+    let offset = 0, label = "Aujourd'hui";
+    if (/demain/.test(t)) { offset = 1; label = 'Demain'; }
+    else if (/hier/.test(t)) { offset = -1; label = 'Hier'; }
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    const saint = SAINTS[d.getMonth()][d.getDate() - 1];
+    const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return botReply(label + ' (' + dateStr + '), on fête : ' + saint + '.');
+  }
+
+  // ---------- Fonctions bonus (suite) ----------
+  const FR_MONTHS = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
+  const FR_MONTHS_RE = FR_MONTHS.join('|');
+  function plural(n, one, many) { return n + ' ' + (n > 1 ? many : one); }
+  function fmtDur(ms) {
+    let s = Math.floor(ms / 1000);
+    if (s < 1) return "moins d'une seconde";
+    const h = Math.floor(s / 3600); s -= h * 3600;
+    const m = Math.floor(s / 60); s -= m * 60;
+    const parts = [];
+    if (h) parts.push(plural(h, 'heure', 'heures'));
+    if (m) parts.push(plural(m, 'minute', 'minutes'));
+    if (s) parts.push(plural(s, 'seconde', 'secondes'));
+    return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' et ' + parts[parts.length - 1] : parts[0];
+  }
+  function fmtHM(d) {
+    const h = d.getHours(), m = d.getMinutes();
+    return h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : '');
+  }
+
+  // ----- Définitions et synonymes (Wiktionnaire) -----
+  const WIKT_CACHE = {};
+  async function getWiktFrench(word) {
+    const key = word.toLowerCase();
+    if (WIKT_CACHE[key] !== undefined) return WIKT_CACHE[key];
+    const url = 'https://fr.wiktionary.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&redirects=1&format=json&formatversion=2&origin=*&titles=' + encodeURIComponent(key);
+    const res = await fetch(url);
+    const data = await res.json();
+    const page = data.query && data.query.pages && data.query.pages[0];
+    const rev = page && !page.missing && page.revisions && page.revisions[0];
+    const text = rev && rev.slots && rev.slots.main && rev.slots.main.content;
+    let fr = null;
+    if (text) {
+      const i = text.indexOf('{{langue|fr}}');
+      if (i !== -1) {
+        fr = text.slice(i);
+        const j = fr.search(/\n==\s*\{\{langue\|(?!fr\})/);
+        if (j !== -1) fr = fr.slice(0, j);
+      }
+    }
+    WIKT_CACHE[key] = fr;
+    return fr;
+  }
+  function cleanWiki(s) {
+    let prev;
+    s = s.replace(/\{\{(?:lien|l)\|([^|}]+)(?:\|[^}]*)?\}\}/g, '$1');
+    do { prev = s; s = s.replace(/\{\{[^{}]*\}\}/g, ''); } while (s !== prev);
+    s = s.replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/'{2,}/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    return s;
+  }
+  function extractDefinitions(fr) {
+    const defs = [];
+    let pos = '';
+    const lines = fr.split('\n');
+    for (const line of lines) {
+      const h = line.match(/^===\s*\{\{S\|([^|}]+)/);
+      if (h) { pos = h[1]; continue; }
+      if (/^#\s/.test(line) && !/^#[*:]/.test(line)) {
+        const d = cleanWiki(line.replace(/^#\s*/, ''));
+        if (d.length > 3) defs.push({ pos, d: d.length > 220 ? d.slice(0, 217) + '…' : d });
+        if (defs.length >= 3) break;
+      }
+    }
+    return defs;
+  }
+  function extractSynonyms(fr) {
+    const out = [];
+    const re = /\{\{S\|synonymes\}\}/g;
+    let m;
+    while ((m = re.exec(fr)) !== null) {
+      let rest = fr.slice(m.index + m[0].length);
+      const end = rest.search(/\n=+\s*\{\{S\|/);
+      if (end !== -1) rest = rest.slice(0, end);
+      const itemRe = /\[\[([^\]|#]+)(?:\|[^\]]*)?\]\]|\{\{(?:lien|l)\|([^|}]+)/g;
+      let it;
+      while ((it = itemRe.exec(rest)) !== null) {
+        const w = (it[1] || it[2]).trim();
+        if (w && !out.includes(w)) out.push(w);
+      }
+    }
+    return out.slice(0, 10);
+  }
+  async function tryHandleWord(text) {
+    const clean = text.trim().replace(/[?!.]+$/, '');
+    const defM = clean.match(/^(?:d[ée]finis(?:-moi)?|d[ée]finition\s+(?:du mot|de la|du|de l'|de|d')|que\s+(?:veut dire|signifie))\s*(?:le mot\s+|la\s+|le\s+|l'|un\s+|une\s+)?(.+)$/i);
+    const synM = clean.match(/^(?:donne[- ]moi\s+(?:des\s+)?)?synonymes?\s+(?:de la |du mot |de l'|du |de |d')\s*(.+)$/i)
+      || clean.match(/^(?:un |des )?autres? mots? (?:pour|qui veut dire)\s+(.+)$/i);
+    const m = defM || synM;
+    if (!m) return false;
+    const word = m[1].trim().toLowerCase();
+    if (!word || word.split(/\s+/).length > 3) return false;
+    addTyping();
+    try {
+      const fr = await getWiktFrench(word);
+      removeTyping();
+      if (!fr) return botReply("Je n'ai pas trouvé ce mot dans le dictionnaire.");
+      if (defM) {
+        const defs = extractDefinitions(fr);
+        if (!defs.length) return botReply("Je n'ai pas trouvé de définition pour « " + word + " ».");
+        const posLabel = defs[0].pos ? ' (' + defs[0].pos + ')' : '';
+        const body = defs.map((x, i) => (defs.length > 1 ? (i + 1) + '. ' : '') + x.d).join('\n');
+        return botReply(word.charAt(0).toUpperCase() + word.slice(1) + posLabel + ' :\n' + body, word + '. ' + defs.map(x => x.d).join('. '));
+      }
+      const syns = extractSynonyms(fr);
+      if (!syns.length) return botReply("Je n'ai pas trouvé de synonymes pour « " + word + " ».");
+      return botReply('Synonymes de « ' + word + ' » : ' + syns.join(', ') + '.');
+    } catch (e) {
+      removeTyping();
+      addBubble('bot', "Je n'ai pas réussi à me connecter au dictionnaire.").classList.add('error');
+      return true;
+    }
+  }
+
+  // ----- Capitales (données locales, sans connexion) -----
+  const CAPITALS_RAW = [
+    "Afghanistan|Kaboul|m", "Afrique du Sud|Pretoria (capitale administrative), Le Cap et Bloemfontein|f", "Albanie|Tirana|f", "Algérie|Alger|f",
+    "Allemagne|Berlin|f", "Andorre|Andorre-la-Vieille|f", "Angola|Luanda|m", "Antigua-et-Barbuda|Saint John's|n",
+    "Arabie saoudite|Riyad|f|arabie saoudite", "Argentine|Buenos Aires|f", "Arménie|Erevan|f", "Australie|Canberra|f",
+    "Autriche|Vienne|f", "Azerbaïdjan|Bakou|m", "Bahamas|Nassau|p", "Bahreïn|Manama|n", "Bangladesh|Dacca|m",
+    "Barbade|Bridgetown|f", "Belgique|Bruxelles|f", "Belize|Belmopan|m", "Bénin|Porto-Novo|m", "Bhoutan|Thimphou|m",
+    "Biélorussie|Minsk|f|bielorussie,belarus", "Birmanie|Naypyidaw|f|myanmar", "Bolivie|Sucre (capitale constitutionnelle) et La Paz (siège du gouvernement)|f",
+    "Bosnie-Herzégovine|Sarajevo|f|bosnie", "Botswana|Gaborone|m", "Brésil|Brasilia|m", "Brunei|Bandar Seri Begawan|n",
+    "Bulgarie|Sofia|f", "Burkina Faso|Ouagadougou|m", "Burundi|Gitega|m", "Cambodge|Phnom Penh|m", "Cameroun|Yaoundé|m",
+    "Canada|Ottawa|m", "Cap-Vert|Praia|m", "Chili|Santiago|m", "Chine|Pékin|f", "Chypre|Nicosie|n", "Colombie|Bogota|f",
+    "Comores|Moroni|p", "Congo|Brazzaville|m|republique du congo,congo-brazzaville", "République démocratique du Congo|Kinshasa|f|rdc,congo-kinshasa,congo kinshasa",
+    "Corée du Nord|Pyongyang|f", "Corée du Sud|Séoul|f", "Costa Rica|San José|m", "Côte d'Ivoire|Yamoussoukro|f|cote d'ivoire",
+    "Croatie|Zagreb|f", "Cuba|La Havane|n", "Danemark|Copenhague|m", "Djibouti|Djibouti|n", "Dominique|Roseau|f",
+    "Égypte|Le Caire|f", "Émirats arabes unis|Abou Dabi|p|emirats,eau", "Équateur|Quito|m", "Érythrée|Asmara|f",
+    "Espagne|Madrid|f", "Estonie|Tallinn|f", "Eswatini|Mbabane|n|swaziland", "États-Unis|Washington|p|usa,etats unis,etats-unis d'amerique,amerique",
+    "Éthiopie|Addis-Abeba|f", "Fidji|Suva|p", "Finlande|Helsinki|f", "France|Paris|f", "Gabon|Libreville|m", "Gambie|Banjul|f",
+    "Géorgie|Tbilissi|f", "Ghana|Accra|m", "Grèce|Athènes|f", "Grenade|Saint-Georges|f", "Guatemala|Guatemala|m",
+    "Guinée|Conakry|f", "Guinée-Bissau|Bissau|f", "Guinée équatoriale|Malabo|f", "Guyana|Georgetown|m", "Haïti|Port-au-Prince|n",
+    "Honduras|Tegucigalpa|m", "Hongrie|Budapest|f", "Îles Salomon|Honiara|p|salomon", "Inde|New Delhi|f", "Indonésie|Jakarta|f",
+    "Irak|Bagdad|m", "Iran|Téhéran|m", "Irlande|Dublin|f", "Islande|Reykjavik|f",
+    "Israël|Jérusalem (proclamée par Israël ; la plupart des ambassades sont à Tel-Aviv)|n", "Italie|Rome|f", "Jamaïque|Kingston|f",
+    "Japon|Tokyo|m", "Jordanie|Amman|f", "Kazakhstan|Astana|m", "Kenya|Nairobi|m", "Kirghizistan|Bichkek|m", "Kiribati|Tarawa|n",
+    "Koweït|Koweït|m", "Laos|Vientiane|m", "Lesotho|Maseru|m", "Lettonie|Riga|f", "Liban|Beyrouth|m", "Liberia|Monrovia|m",
+    "Libye|Tripoli|f", "Liechtenstein|Vaduz|m", "Lituanie|Vilnius|f", "Luxembourg|Luxembourg|m", "Macédoine du Nord|Skopje|f|macedoine",
+    "Madagascar|Antananarivo|n", "Malaisie|Kuala Lumpur|f", "Malawi|Lilongwe|m", "Maldives|Malé|p", "Mali|Bamako|m",
+    "Malte|La Valette|n", "Maroc|Rabat|m", "Îles Marshall|Majuro|p|marshall", "Maurice|Port-Louis|f|ile maurice", "Mauritanie|Nouakchott|f",
+    "Mexique|Mexico|m", "Micronésie|Palikir|f", "Moldavie|Chisinau|f", "Monaco|Monaco|n", "Mongolie|Oulan-Bator|f",
+    "Monténégro|Podgorica|m", "Mozambique|Maputo|m", "Namibie|Windhoek|f", "Nauru|Yaren|n", "Népal|Katmandou|m",
+    "Nicaragua|Managua|m", "Niger|Niamey|m", "Nigeria|Abuja|m", "Norvège|Oslo|f", "Nouvelle-Zélande|Wellington|f",
+    "Oman|Mascate|n", "Ouganda|Kampala|m", "Ouzbékistan|Tachkent|m", "Pakistan|Islamabad|m", "Palaos|Ngerulmud|p",
+    "Palestine|Ramallah (siège du gouvernement) ; Jérusalem-Est est revendiquée|f", "Panama|Panama|m",
+    "Papouasie-Nouvelle-Guinée|Port Moresby|f", "Paraguay|Asunción|m", "Pays-Bas|Amsterdam (le gouvernement siège à La Haye)|p|hollande",
+    "Pérou|Lima|m", "Philippines|Manille|p", "Pologne|Varsovie|f", "Portugal|Lisbonne|m", "Qatar|Doha|m",
+    "République centrafricaine|Bangui|f|centrafrique", "République dominicaine|Saint-Domingue|f", "République tchèque|Prague|f|tchequie",
+    "Roumanie|Bucarest|f", "Royaume-Uni|Londres|m|angleterre,grande-bretagne,grande bretagne,uk,royaume uni", "Russie|Moscou|f", "Rwanda|Kigali|m",
+    "Saint-Kitts-et-Nevis|Basseterre|n", "Sainte-Lucie|Castries|n", "Saint-Vincent-et-les-Grenadines|Kingstown|n",
+    "Salvador|San Salvador|m|el salvador", "Samoa|Apia|m", "Saint-Marin|Saint-Marin|n", "Sao Tomé-et-Principe|São Tomé|n|sao tome",
+    "Sénégal|Dakar|m", "Serbie|Belgrade|f", "Seychelles|Victoria|p", "Sierra Leone|Freetown|f", "Singapour|Singapour|n",
+    "Slovaquie|Bratislava|f", "Slovénie|Ljubljana|f", "Somalie|Mogadiscio|f", "Soudan|Khartoum|m", "Soudan du Sud|Djouba|m",
+    "Sri Lanka|Sri Jayawardenapura Kotte (la capitale économique est Colombo)|m", "Suède|Stockholm|f", "Suisse|Berne|f",
+    "Suriname|Paramaribo|m", "Syrie|Damas|f", "Tadjikistan|Douchanbé|m", "Tanzanie|Dodoma|f", "Tchad|N'Djamena|m",
+    "Thaïlande|Bangkok|f", "Timor oriental|Dili|m", "Togo|Lomé|m", "Tonga|Nuku'alofa|n", "Trinité-et-Tobago|Port-d'Espagne|f",
+    "Tunisie|Tunis|f", "Turkménistan|Achgabat|m", "Turquie|Ankara|f", "Tuvalu|Funafuti|n", "Ukraine|Kiev|f", "Uruguay|Montevideo|m",
+    "Vanuatu|Port-Vila|m", "Vatican|Cité du Vatican|m", "Venezuela|Caracas|m", "Viêt Nam|Hanoï|m|vietnam", "Yémen|Sanaa|m",
+    "Zambie|Lusaka|f", "Zimbabwe|Harare|m", "Taïwan|Taipei|n", "Kosovo|Pristina|m"
+  ];
+  const CAPITALS = {};
+  CAPITALS_RAW.forEach(line => {
+    const [name, capital, art, aliases] = line.split('|');
+    const entry = { name, capital, art };
+    CAPITALS[norm(name)] = entry;
+    (aliases || '').split(',').filter(Boolean).forEach(a => { CAPITALS[norm(a)] = entry; });
+  });
+  function findCapital(typed) {
+    let t = norm(typed).replace(/^(?:la |le |les |l'|l ')\s*/, '').trim();
+    return CAPITALS[t] || CAPITALS[norm(typed)] || null;
+  }
+  const VOWEL_RE = /^[aeiouyàâäéèêëîïôöûüœ]/i;
+  function countryDe(entry) {
+    const n = entry.name;
+    if (entry.art === 'p') return 'des ' + n;
+    if (entry.art === 'n') return (VOWEL_RE.test(norm(n)) ? "d'" : 'de ') + n;
+    if (VOWEL_RE.test(norm(n))) return "de l'" + n;
+    return (entry.art === 'm' ? 'du ' : 'de la ') + n;
+  }
+  // ----- Pays : capitale, population, monnaie, langues, drapeau -----
+  async function tryHandleCountry(text) {
+    const clean = text.trim().replace(/[?!.]+$/, '');
+    const m = clean.match(/(capitale|population|monnaie|drapeau|langues?\s+(?:officielles?|parl[ée]es?))\s+(de la |de l'|du |des |de |d'|en |au |aux )?\s*(.+)$/i);
+    if (!m) return false;
+    const kindRaw = norm(m[1]);
+    const kind = kindRaw.startsWith('langue') ? 'langue' : kindRaw;
+    const art0 = (m[2] || '').toLowerCase();
+    const name = m[3].trim();
+    if (!name || name.split(/\s+/).length > 5) return false;
+    if (kind === 'capitale') {
+      const local = findCapital(name);
+      if (local) return botReply('La capitale ' + countryDe(local) + ' est ' + local.capital + '.');
+    }
+    if (!art0) return false;
+    addTyping();
+    try {
+      const res = await fetch('https://restcountries.com/v3.1/translation/' + encodeURIComponent(name) + '?fields=name,translations,capital,population,currencies,languages,flag');
+      if (!res.ok) { removeTyping(); return botReply("Je ne trouve pas ce pays."); }
+      const list = await res.json();
+      removeTyping();
+      const target = norm(name);
+      const c = list.find(x => norm((x.translations && x.translations.fra && x.translations.fra.common) || '') === target || norm(x.name.common) === target) || list[0];
+      const fra = (c.translations && c.translations.fra && c.translations.fra.common) || c.name.common;
+      const artMap = { 'en ': 'de ', 'au ': 'du ', 'aux ': 'des ' };
+      let deArt = artMap[art0] || art0;
+      if (deArt === 'de ' && /^[aeiouyhâêîôûéèàÉÈÀ]/i.test(fra)) deArt = "d'";
+      const de = deArt + fra;
+      const subj = ({ 'de la ': 'La ', 'du ': 'Le ', 'des ': 'Les ', "de l'": "L'" }[deArt] || '') + fra;
+      if (kind === 'capitale') {
+        if (!c.capital || !c.capital.length) return botReply(subj + " n'a pas de capitale officielle.");
+        return botReply('La capitale ' + de + ' est ' + c.capital.join(' et ') + ' ' + (c.flag || '') + '.');
+      }
+      if (kind === 'population') {
+        return botReply(subj + ' compte environ ' + c.population.toLocaleString('fr-FR') + ' habitants ' + (c.flag || '') + '.');
+      }
+      if (kind === 'drapeau') {
+        return botReply('Le drapeau ' + de + ' : ' + (c.flag || '🏳️'));
+      }
+      if (kind === 'monnaie') {
+        const cur = Object.entries(c.currencies || {});
+        if (!cur.length) return botReply("Je n'ai pas trouvé la monnaie " + de + '.');
+        const names = await trFr(cur.map(([, v]) => v.name).join(', '));
+        return botReply('La monnaie ' + de + ' : ' + names + ' (' + cur.map(([k]) => k).join(', ') + ').');
+      }
+      const langs = Object.values(c.languages || {});
+      if (!langs.length) return botReply("Je n'ai pas trouvé les langues " + de + '.');
+      return botReply('Langues ' + de + ' : ' + (await trFr(langs.join(', '))) + '.');
+    } catch (e) {
+      removeTyping();
+      addBubble('bot', "Je n'ai pas réussi à me connecter au service des pays.").classList.add('error');
+      return true;
+    }
+  }
+
+  // ----- Éphéméride -----
+  async function tryHandleEphemeris(text) {
+    const t = norm(text).replace(/[?!.]+$/, '');
+    if (t.length > 80) return false;
+    if (!/ephemeride|que s'est[- ]il passe|il s'est passe quoi|que s'est[- ]il produit|evenements? (du|de ce) jour/.test(t)) return false;
+    const dm = t.match(new RegExp('\\b(1er|\\d{1,2})\\s+(' + FR_MONTHS_RE + ')\\b'));
+    let day, month;
+    if (dm) {
+      day = dm[1] === '1er' ? 1 : parseInt(dm[1], 10);
+      month = FR_MONTHS.indexOf(dm[2]) + 1;
+    } else if (/ephemeride|aujourd'hui|ce jour|aujourdhui/.test(t)) {
+      const now = new Date();
+      day = now.getDate();
+      month = now.getMonth() + 1;
+    } else {
+      return false;
+    }
+    if (day < 1 || day > 31) return false;
+    addTyping();
+    try {
+      const mm = String(month).padStart(2, '0'), dd = String(day).padStart(2, '0');
+      const res = await fetch('https://fr.wikipedia.org/api/rest_v1/feed/onthisday/events/' + mm + '/' + dd);
+      const data = await res.json();
+      removeTyping();
+      const events = (data.events || []).filter(e => e.text && e.year);
+      if (!events.length) return botReply("Je n'ai pas trouvé d'événement pour cette date.");
+      const chosen = events.slice().sort(() => Math.random() - 0.5).slice(0, 3).sort((a, b) => a.year - b.year);
+      const title = (day === 1 ? '1er' : day) + ' ' + FR_MONTHS_LABEL(month);
+      const lines = chosen.map(e => e.year + ' : ' + e.text);
+      return botReply('Le ' + title + ' :\n' + lines.join('\n'), 'Le ' + title + '. ' + lines.join('. '));
+    } catch (e) {
+      removeTyping();
+      addBubble('bot', "Je n'ai pas réussi à me connecter à l'encyclopédie.").classList.add('error');
+      return true;
+    }
+  }
+  function FR_MONTHS_LABEL(m) {
+    return ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][m - 1];
+  }
+
+  // ----- Fait du jour -----
+  async function tryHandleFact(text) {
+    const t = norm(text);
+    if (t.length > 50) return false;
+    if (!/(fait du jour|anecdote|saviez[- ]vous|fait insolite|fait (interessant|amusant|curieux)|le savais[- ]tu|surprends[- ]moi)/.test(t)) return false;
+    addTyping();
+    try {
+      for (let i = 0; i < 4; i++) {
+        const res = await fetch('https://fr.wikipedia.org/api/rest_v1/page/random/summary');
+        const d = await res.json();
+        if (d.extract && d.extract.length > 100) {
+          const sentences = d.extract.split(/(?<=[.!?])\s+(?=[A-ZÉÈÀÂÎÔÛ])/).slice(0, 2).join(' ');
+          removeTyping();
+          return botReply('Le saviez-vous ? ' + d.title + ' : ' + sentences);
+        }
+      }
+      removeTyping();
+      return botReply("Je n'ai pas trouvé d'anecdote cette fois, redemande-moi.");
+    } catch (e) {
+      removeTyping();
+      addBubble('bot', "Je n'ai pas réussi à me connecter à l'encyclopédie.").classList.add('error');
+      return true;
+    }
+  }
+
+  // ----- Soleil et lune -----
+  function sunTimes(date, lat, lon) {
+    const rad = Math.PI / 180;
+    const y = date.getFullYear(), mo = date.getMonth(), da = date.getDate();
+    const base = Date.UTC(y, mo, da);
+    const doy = Math.round((base - Date.UTC(y, 0, 0)) / 86400000);
+    const g = 2 * Math.PI / 365 * (doy - 1);
+    const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+    const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+    const cosHa = Math.cos(90.833 * rad) / (Math.cos(lat * rad) * Math.cos(decl)) - Math.tan(lat * rad) * Math.tan(decl);
+    if (cosHa > 1) return { polar: 'night' };
+    if (cosHa < -1) return { polar: 'day' };
+    const ha = Math.acos(cosHa) / rad;
+    return {
+      rise: new Date(base + (720 - 4 * (lon + ha) - eq) * 60000),
+      set: new Date(base + (720 - 4 * (lon - ha) - eq) * 60000)
+    };
+  }
+  function moonInfo(date) {
+    const syn = 29.530588853;
+    const ref = Date.UTC(2000, 0, 6, 18, 14);
+    let age = ((date.getTime() - ref) / 86400000) % syn;
+    if (age < 0) age += syn;
+    const illum = Math.round((1 - Math.cos(2 * Math.PI * age / syn)) / 2 * 100);
+    const phases = [[1.85, 'nouvelle lune'], [5.54, 'premier croissant'], [9.22, 'premier quartier'], [12.91, 'lune gibbeuse croissante'], [16.61, 'pleine lune'], [20.3, 'lune gibbeuse décroissante'], [23.99, 'dernier quartier'], [27.68, 'dernier croissant'], [99, 'nouvelle lune']];
+    const phase = phases.find(p => age < p[0])[1];
+    const toFull = Math.round(((syn / 2 - age) % syn + syn) % syn);
+    const toNew = Math.round(((syn - age) % syn + syn) % syn);
+    return { phase, illum, toFull, toNew };
+  }
+  async function tryHandleSunMoon(text) {
+    const t = norm(text).replace(/[?!.]+$/, '');
+    if (t.length > 80) return false;
+    const wantSun = /(lever|coucher)s? (du )?soleil|soleil se (leve|couche)|a quelle heure (il fait nuit|la nuit tombe|le jour se leve)/.test(t);
+    const wantMoon = /phase de la lune|quelle lune|lune (aujourd'hui|ce soir|actuelle|en ce moment)|pleine lune|nouvelle lune|^la lune$/.test(t);
+    if (!wantSun && !wantMoon) return false;
+    const parts = [];
+    if (wantSun) {
+      const c = await getCoords();
+      if (!c) {
+        parts.push("Je n'ai pas accès à ta position, donc je ne peux pas te donner le lever et le coucher du soleil.");
+      } else {
+        const s = sunTimes(new Date(), c.latitude, c.longitude);
+        if (s.polar === 'night') parts.push("Aujourd'hui, le soleil ne se lève pas chez toi.");
+        else if (s.polar === 'day') parts.push("Aujourd'hui, le soleil ne se couche pas chez toi.");
+        else parts.push("Aujourd'hui, le soleil se lève à " + fmtHM(s.rise) + ' et se couche à ' + fmtHM(s.set) + '.');
+      }
+    }
+    if (wantMoon) {
+      const mo = moonInfo(new Date());
+      parts.push('La Lune est en ' + mo.phase + ', éclairée à environ ' + mo.illum + ' %. Prochaine pleine lune ' + (mo.toFull === 0 ? "aujourd'hui" : 'dans ' + plural(mo.toFull, 'jour', 'jours')) + ', prochaine nouvelle lune ' + (mo.toNew === 0 ? "aujourd'hui" : 'dans ' + plural(mo.toNew, 'jour', 'jours')) + '.');
+    }
+    return botReply(parts.join(' '));
+  }
+
+  // ----- Chronomètre -----
+  function getChrono() {
+    try { const v = localStorage.getItem('bipbip_chrono'); return v ? parseInt(v, 10) : null; } catch (e) { return null; }
+  }
+  function setChrono(v) {
+    try { if (v) localStorage.setItem('bipbip_chrono', String(v)); else localStorage.removeItem('bipbip_chrono'); } catch (e) {}
+  }
+  function tryHandleChrono(text) {
+    const t = norm(text).replace(/[?!.]+$/, '').trim();
+    const running = getChrono();
+    if (/^(lance|lancer|demarre|demarrer|start|commence|declenche|mets?)\s+(le |un |mon |ton )?(chrono|chronometre)$/.test(t)) {
+      setChrono(Date.now());
+      return botReply('Chrono lancé. Dis « stop » quand tu veux l\'arrêter.');
+    }
+    if (/(remets?|reinitialise|zero).*(chrono|chronometre)/.test(t)) {
+      setChrono(null);
+      return botReply('Chrono remis à zéro.');
+    }
+    if (/^(stop|stoppe|arrete|arreter|termine|fin|fini)(\s+(le |mon |ton )?(chrono|chronometre))?$/.test(t)) {
+      const explicit = /(chrono|chronometre)/.test(t);
+      if (!running) return explicit ? botReply('Aucun chrono en cours.') : false;
+      setChrono(null);
+      return botReply('Chrono arrêté : ' + fmtDur(Date.now() - running) + '.');
+    }
+    if (/^(chrono|chronometre)$|(combien de temps|ou en est|temps).*(chrono|chronometre)|^(chrono|chronometre) en cours/.test(t)) {
+      if (!running) return botReply('Aucun chrono en cours. Dis « lance le chrono » pour en démarrer un.');
+      return botReply('Le chrono tourne depuis ' + fmtDur(Date.now() - running) + '.');
+    }
+    return false;
+  }
+
+  // ----- Calcul d'âge -----
+  function tryHandleAge(text) {
+    const t = norm(text).replace(/[?!.]+$/, '');
+    if (!/\bage\b/.test(t) || !/\b(ne|nee|naissance)\b/.test(t)) return false;
+    let d, mo, y;
+    let m = t.match(new RegExp('\\b(1er|\\d{1,2})\\s+(' + FR_MONTHS_RE + ')\\s+(\\d{4})\\b'));
+    if (m) { d = m[1] === '1er' ? 1 : parseInt(m[1], 10); mo = FR_MONTHS.indexOf(m[2]); y = parseInt(m[3], 10); }
+    else {
+      m = t.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\b/);
+      if (m) { d = parseInt(m[1], 10); mo = parseInt(m[2], 10) - 1; y = parseInt(m[3], 10); }
+    }
+    if (d === undefined) return botReply("Donne-moi ta date de naissance complète, par exemple : j'ai quel âge, je suis né le 3 mai 1990.");
+    const birth = new Date(y, mo, d);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (birth.getMonth() !== mo || birth.getDate() !== d || birth > today) return botReply("Cette date de naissance ne me semble pas valide.");
+    let years = today.getFullYear() - y;
+    let months = today.getMonth() - mo;
+    let days = today.getDate() - d;
+    if (days < 0) { months--; days += new Date(today.getFullYear(), today.getMonth(), 0).getDate(); }
+    if (months < 0) { years--; months += 12; }
+    let next = new Date(today.getFullYear(), mo, d);
+    if (next < today) next = new Date(today.getFullYear() + 1, mo, d);
+    const n = Math.round((next - today) / 86400000);
+    if (n === 0) return botReply('Joyeux anniversaire ! Tu as ' + plural(years, 'an', 'ans') + " aujourd'hui.");
+    const nextStr = next.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return botReply('Ça fait ' + plural(years, 'an', 'ans') + ', ' + plural(months, 'mois', 'mois') + ' et ' + plural(days, 'jour', 'jours') + '. Prochain anniversaire : ' + nextStr + ', ' + daysText(n) + '.');
+  }
+
+  // ----- Devises (avec cache hors ligne) -----
+  const FX_NAMES = { EUR: 'euros', USD: 'dollars', GBP: 'livres sterling', CHF: 'francs suisses', JPY: 'yens', CAD: 'dollars canadiens', MAD: 'dirhams marocains', AED: 'dirhams émiratis', CNY: 'yuans', INR: 'roupies', RUB: 'roubles', BRL: 'reals', KRW: 'wons', MXN: 'pesos mexicains', DZD: 'dinars algériens', TND: 'dinars tunisiens', XOF: 'francs CFA', TRY: 'livres turques', AUD: 'dollars australiens', PLN: 'zlotys', ZAR: 'rands', THB: 'bahts', SGD: 'dollars singapouriens', NZD: 'dollars néo-zélandais', SEK: 'couronnes suédoises', NOK: 'couronnes norvégiennes', DKK: 'couronnes danoises', ILS: 'shekels' };
+  const FX_FALLBACK = { EUR: 1, USD: 1.08, GBP: 0.85, CHF: 0.95, JPY: 165, CAD: 1.47, MAD: 10.8, AED: 3.97, CNY: 7.8, INR: 90, RUB: 100, BRL: 5.4, KRW: 1450, MXN: 18.5, DZD: 145, TND: 3.35, XOF: 655.957, TRY: 35, AUD: 1.65, PLN: 4.3, ZAR: 19.5, THB: 38, SGD: 1.45, NZD: 1.8, SEK: 11.5, NOK: 11.7, DKK: 7.46, ILS: 4 };
+  const FX_ALIASES = [
+    ['dollars canadiens', 'CAD'], ['dollar canadien', 'CAD'], ['dollars australiens', 'AUD'], ['dollar australien', 'AUD'],
+    ['dollars singapouriens', 'SGD'], ['dollar singapourien', 'SGD'], ['dollars neo-zelandais', 'NZD'], ['dollar neo-zelandais', 'NZD'],
+    ['dollars americains', 'USD'], ['dollar americain', 'USD'], ['dollars', 'USD'], ['dollar', 'USD'], ['usd', 'USD'],
+    ['euros', 'EUR'], ['euro', 'EUR'], ['eur', 'EUR'],
+    ['livres sterling', 'GBP'], ['livre sterling', 'GBP'], ['livres turques', 'TRY'], ['livre turque', 'TRY'], ['livres', 'GBP'], ['livre', 'GBP'], ['gbp', 'GBP'],
+    ['francs suisses', 'CHF'], ['franc suisse', 'CHF'], ['chf', 'CHF'], ['francs cfa', 'XOF'], ['franc cfa', 'XOF'], ['xof', 'XOF'],
+    ['yens', 'JPY'], ['yen', 'JPY'], ['jpy', 'JPY'], ['cad', 'CAD'],
+    ['dirhams marocains', 'MAD'], ['dirham marocain', 'MAD'], ['dirhams emiratis', 'AED'], ['dirham emirati', 'AED'], ['dirhams', 'MAD'], ['dirham', 'MAD'], ['mad', 'MAD'], ['aed', 'AED'],
+    ['yuans', 'CNY'], ['yuan', 'CNY'], ['cny', 'CNY'], ['roupies', 'INR'], ['roupie', 'INR'], ['inr', 'INR'],
+    ['roubles', 'RUB'], ['rouble', 'RUB'], ['rub', 'RUB'], ['reals', 'BRL'], ['brl', 'BRL'], ['wons', 'KRW'], ['krw', 'KRW'],
+    ['pesos mexicains', 'MXN'], ['peso mexicain', 'MXN'], ['pesos', 'MXN'], ['peso', 'MXN'], ['mxn', 'MXN'],
+    ['dinars algeriens', 'DZD'], ['dinar algerien', 'DZD'], ['dzd', 'DZD'], ['dinars tunisiens', 'TND'], ['dinar tunisien', 'TND'], ['tnd', 'TND'],
+    ['aud', 'AUD'], ['zlotys', 'PLN'], ['zloty', 'PLN'], ['pln', 'PLN'], ['rands', 'ZAR'], ['zar', 'ZAR'], ['bahts', 'THB'], ['baht', 'THB'], ['thb', 'THB'],
+    ['sgd', 'SGD'], ['nzd', 'NZD'],
+    ['couronnes suedoises', 'SEK'], ['couronne suedoise', 'SEK'], ['sek', 'SEK'], ['couronnes norvegiennes', 'NOK'], ['couronne norvegienne', 'NOK'], ['nok', 'NOK'],
+    ['couronnes danoises', 'DKK'], ['couronne danoise', 'DKK'], ['dkk', 'DKK'], ['shekels', 'ILS'], ['shekel', 'ILS'], ['ils', 'ILS']
+  ].sort((a, b) => b[0].length - a[0].length);
+  const FX_ALT = FX_ALIASES.map(a => a[0]).join('|');
+  const FX_RE = new RegExp('(-?\\d+(?:[.,]\\d+)?)\\s*(' + FX_ALT + ')\\s+(?:en|vers|to)\\s+(' + FX_ALT + ')(?![a-z])');
+  async function loadFx() {
+    let cache = null;
+    try { cache = JSON.parse(localStorage.getItem('bipbip_fx') || 'null'); } catch (e) {}
+    if (cache && cache.rates && Date.now() - cache.ts < 6 * 3600 * 1000) return { rates: cache.rates, note: '' };
+    if (navigator.onLine !== false) {
+      try {
+        const r = await fetch('https://open.er-api.com/v6/latest/EUR');
+        const d = await r.json();
+        if (d && d.rates && d.rates.USD) {
+          try { localStorage.setItem('bipbip_fx', JSON.stringify({ rates: d.rates, ts: Date.now() })); } catch (e) {}
+          return { rates: d.rates, note: '' };
+        }
+      } catch (e) {}
+      try {
+        const r = await fetch('https://api.frankfurter.app/latest?from=EUR');
+        const d = await r.json();
+        if (d && d.rates) {
+          const rates = Object.assign({}, FX_FALLBACK, d.rates, { EUR: 1 });
+          try { localStorage.setItem('bipbip_fx', JSON.stringify({ rates, ts: Date.now() })); } catch (e) {}
+          return { rates, note: '' };
+        }
+      } catch (e) {}
+    }
+    if (cache && cache.rates) return { rates: cache.rates, note: ' (dernier taux enregistré, hors ligne)' };
+    return { rates: FX_FALLBACK, note: ' (taux approximatifs, hors ligne)' };
+  }
+  async function tryHandleCurrency(text) {
+    const m = norm(text).match(FX_RE);
+    if (!m) return false;
+    const val = parseFloat(m[1].replace(',', '.'));
+    const from = FX_ALIASES.find(a => a[0] === m[2])[1];
+    const to = FX_ALIASES.find(a => a[0] === m[3])[1];
+    if (from === to) return botReply(fmtN(val) + ' ' + FX_NAMES[from] + ' = ' + fmtN(val) + ' ' + FX_NAMES[to] + '.');
+    const { rates, note } = await loadFx();
+    if (!rates[from] || !rates[to]) return botReply("Je n'ai pas le taux pour cette devise.");
+    const res = val / rates[from] * rates[to];
+    return botReply(fmtN(val) + ' ' + FX_NAMES[from] + ' = ' + fmtN(res) + ' ' + FX_NAMES[to] + '.' + note);
+  }
+
+  // ----- Liste de courses -----
+  function getShop() {
+    try { return JSON.parse(localStorage.getItem('bipbip_shopping') || '[]'); } catch (e) { return []; }
+  }
+  function setShop(l) {
+    try { localStorage.setItem('bipbip_shopping', JSON.stringify(l)); } catch (e) {}
+  }
+  function cleanItem(s) {
+    return s.trim().replace(/^(?:du|de la|de l'|des|d'|le|la|les|l'|un|une)\s*/i, '').trim();
+  }
+  function tryHandleShopping(text) {
+    const raw = text.trim().replace(/[?!.]+$/, '');
+    const t = norm(raw);
+    if (/^(vide|efface|supprime)\s+(toute\s+)?(mes|ma|la)\s+(liste de )?courses$/.test(t)) {
+      setShop([]);
+      return botReply("C'est fait, ta liste de courses est vide.");
+    }
+    if (/^((lis|lire|montre|affiche|donne)(-moi)?\s+)?(mes|ma|la)\s+(liste de )?courses$|^qu'est[- ]ce que je dois acheter$/.test(t)) {
+      const list = getShop();
+      if (!list.length) return botReply("Ta liste de courses est vide.");
+      return botReply('Ta liste de courses :\n' + list.map(x => '• ' + x).join('\n'), 'Tu dois acheter : ' + list.join(', ') + '.');
+    }
+    const add = raw.match(/^(?:ajoute|ajouter|mets?|rajoute)\s+(.+?)\s+(?:aux|à mes|a mes|à ma|a ma|à la|a la|sur ma|sur la|dans mes|dans ma|dans la)\s+(?:liste de\s+)?courses$/i);
+    if (add) {
+      const items = add[1].split(/\s*(?:,|\bet\b)\s*/i).map(cleanItem).filter(Boolean);
+      if (!items.length) return false;
+      const list = getShop();
+      items.forEach(i => { if (!list.some(x => norm(x) === norm(i))) list.push(i); });
+      setShop(list);
+      return botReply('Ajouté à tes courses : ' + items.join(', ') + '.');
+    }
+    const rem = raw.match(/^(raye|rayer|barre|retire|enl[eè]ve|supprime)\s+(.+?)(?:\s+(?:des|de la|de mes|de ma|de|sur la|sur ma)\s+(?:liste de\s+)?courses)?$/i);
+    if (rem) {
+      const hasCourses = /courses$/i.test(raw);
+      const items = rem[2].split(/\s*(?:,|\bet\b)\s*/i).map(cleanItem).filter(Boolean);
+      const list = getShop();
+      const removed = [];
+      items.forEach(i => {
+        const idx = list.findIndex(x => norm(x) === norm(i) || norm(x).includes(norm(i)));
+        if (idx !== -1) { removed.push(list[idx]); list.splice(idx, 1); }
+      });
+      if (!removed.length) return hasCourses ? botReply("Je ne trouve pas ça dans ta liste de courses.") : false;
+      setShop(list);
+      return botReply('Retiré de tes courses : ' + removed.join(', ') + '.');
+    }
+    return false;
+  }
+
+  // ---------- Point info : toutes les possibilités ----------
+  const INFO_SECTIONS = [
+    { icon: '💬', title: 'Conversation', note: "Pose-moi n'importe quelle question, à l'écrit ou au micro. Je réponds à voix haute.", ex: ["Explique-moi la photosynthèse", "Donne-moi une idée de cadeau"] },
+    { icon: '🌤️', title: 'Météo et actualités', note: 'La météo utilise ta position.', ex: ["Quelle est la météo ?", "Les actualités du jour"] },
+    { icon: '📚', title: 'Savoir', ex: ["Qui est Victor Hugo ?", "Définis le mot nostalgie", "Synonymes de rapide", "Quelle est la capitale du Chili ?", "Population de la France", "Monnaie du Japon", "Drapeau de l'Italie", "Langues parlées au Maroc", "Éphéméride", "Que s'est-il passé un 5 novembre ?", "Le saviez-vous ?"] },
+    { icon: '🕐', title: 'Heure, dates et astres', ex: ["Quelle heure est-il à Tokyo ?", "Quel jour sommes-nous ?", "Quel est le saint du jour ?", "Quand est Pâques ?", "Combien de jours avant Noël ?", "Jours fériés", "Quel âge ai-je si je suis né le 3 mai 1990 ?", "Coucher du soleil", "Phase de la lune"] },
+    { icon: '⏰', title: 'Rappels, minuteurs et chrono', note: 'Pour arrêter le chrono, dis « stop ».', ex: ["Rappelle-moi de sortir le linge dans 10 minutes", "Minuteur de 5 minutes", "Lance le chrono"] },
+    { icon: '🧮', title: 'Calculs et conversions', ex: ["Calcule 12 fois 7", "5 miles en km", "3 kg en livres", "200 °F en °C", "100 dollars en euros", "50 euros en dirhams"] },
+    { icon: '🌍', title: 'Traduction et images', ex: ["Traduis bonjour en espagnol", "Montre-moi des images de chats"] },
+    { icon: '📝', title: 'Notes et courses', note: 'Tout est gardé sur ton téléphone.', ex: ["Note : appeler Paul", "Lis mes notes", "Ajoute du lait et des œufs aux courses", "Lis mes courses", "Raye le lait"] },
+    { icon: '🎉', title: 'Détente', ex: ["Raconte-moi une blague", "Une citation", "Horoscope lion", "Une recette au hasard"] },
+    { icon: '🎙️', title: 'Micro et voix', note: "Appuie sur le micro pour parler en français, puis rappuie pour envoyer. Le haut-parleur en haut à droite coupe la voix, la liste déroulante change de voix, et le 🔊 de chaque réponse la fait relire." }
+  ];
+  let infoPanel = null;
+  function closeInfo() { if (infoPanel) infoPanel.classList.remove('open'); }
+  function openInfo() {
+    if (!infoPanel) {
+      infoPanel = document.createElement('div');
+      infoPanel.id = 'info-panel';
+      const head = document.createElement('div');
+      head.className = 'info-head';
+      const title = document.createElement('div');
+      title.className = 'info-title';
+      title.textContent = 'Tout ce que je sais faire';
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'info-close';
+      close.setAttribute('aria-label', 'Fermer');
+      close.textContent = '✕';
+      close.addEventListener('click', closeInfo);
+      head.appendChild(title);
+      head.appendChild(close);
+      const body = document.createElement('div');
+      body.className = 'info-body';
+      const hint = document.createElement('div');
+      hint.className = 'info-hint';
+      hint.textContent = 'Touche un exemple pour l\'essayer.';
+      body.appendChild(hint);
+      INFO_SECTIONS.forEach(sec => {
+        const box = document.createElement('div');
+        box.className = 'info-sec';
+        const h = document.createElement('h3');
+        h.textContent = sec.icon + ' ' + sec.title;
+        box.appendChild(h);
+        if (sec.note) {
+          const p = document.createElement('p');
+          p.textContent = sec.note;
+          box.appendChild(p);
+        }
+        if (sec.ex) {
+          const chips = document.createElement('div');
+          chips.className = 'info-chips';
+          sec.ex.forEach(e => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'info-chip';
+            b.textContent = e;
+            b.addEventListener('click', () => {
+              closeInfo();
+              input.value = e;
+              form.requestSubmit();
+            });
+            chips.appendChild(b);
+          });
+          box.appendChild(chips);
+        }
+        body.appendChild(box);
+      });
+      infoPanel.appendChild(head);
+      infoPanel.appendChild(body);
+      document.body.appendChild(infoPanel);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeInfo(); });
+    }
+    infoPanel.classList.add('open');
+    const b = infoPanel.querySelector('.info-body');
+    if (b) b.scrollTop = 0;
+  }
+  document.getElementById('info-btn').addEventListener('click', openInfo);
+  function tryHandleHelp(text) {
+    const t = norm(text).replace(/[?!.]+$/, '').trim();
+    if (!/^(aide|aide[- ]moi|help|point info|infos?|que sais[- ]tu faire|qu'est[- ]ce que tu sais faire|que peux[- ]tu faire|qu'est[- ]ce que tu peux faire|tes fonctions|tes possibilites|tes options|liste (de )?tes fonctions)$/.test(t)) return false;
+    openInfo();
+    return botReply("Voici tout ce que je sais faire.");
+  }
+
   async function tryHandleLocalCommands(text) {
     if (tryHandleReminder(text)) return true;
     if (tryHandleTimer(text)) return true;
+    if (tryHandleTime(text)) return true;
+    if (tryHandleHelp(text)) return true;
+    if (tryHandleSaint(text)) return true;
+    if (tryHandleChrono(text)) return true;
+    if (tryHandleShopping(text)) return true;
+    if (tryHandleAge(text)) return true;
+    if (await tryHandleWord(text)) return true;
+    if (await tryHandleCountry(text)) return true;
+    if (await tryHandleEphemeris(text)) return true;
+    if (await tryHandleFact(text)) return true;
+    if (await tryHandleSunMoon(text)) return true;
+    if (await tryHandleCurrency(text)) return true;
+    if (tryHandleNotes(text)) return true;
+    if (tryHandleJokeQuote(text)) return true;
+    if (tryHandleConversion(text)) return true;
+    if (tryHandleHoroscope(text)) return true;
+    if (tryHandleHolidays(text)) return true;
+    if (await tryHandleRecipe(text)) return true;
     if (tryHandleCalculation(text)) return true;
     if (await tryHandleTranslation(text)) return true;
     if (await tryHandleImageSearch(text)) return true;
@@ -1080,7 +2264,7 @@
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 1000,
-          system: "Tu es Bipbip, un petit robot assistant amical. Nous sommes le " + new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + (liveContext ? " " + liveContext : "") + " Tu réponds en français, de façon claire, chaleureuse et concise (adaptée à être lue à voix haute et affichée sur un écran de téléphone). Tu peux parler de n'importe quel sujet. Évite les listes à puces et le markdown, préfère des phrases courtes.",
+          system: "Tu es " + botName + ", un petit robot assistant amical. Nous sommes le " + new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + (liveContext ? " " + liveContext : "") + " Tu réponds en français, de façon claire, chaleureuse et concise (adaptée à être lue à voix haute et affichée sur un écran de téléphone). Tu peux parler de n'importe quel sujet. Évite les listes à puces et le markdown, préfère des phrases courtes.",
           messages: history
         })
       });
@@ -1129,13 +2313,7 @@
 
   if (SpeechRecognitionAPI) {
     recognition = new SpeechRecognitionAPI();
-    recognition.lang = localStorage.getItem('bipbip_reco_lang') || 'fr-FR';
-    const langSelect = document.getElementById('langSelect');
-    langSelect.value = recognition.lang;
-    langSelect.addEventListener('change', () => {
-      localStorage.setItem('bipbip_reco_lang', langSelect.value);
-      recognition.lang = langSelect.value;
-    });
+    recognition.lang = 'fr-FR';
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
