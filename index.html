@@ -2314,28 +2314,52 @@
   if (SpeechRecognitionAPI) {
     recognition = new SpeechRecognitionAPI();
     recognition.lang = 'fr-FR';
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
+    recognition.onaudiostart = () => { clearTimeout(startWatchdog); };
+    recognition.onspeechstart = () => { clearTimeout(startWatchdog); };
     recognition.onstart = () => {
       clearTimeout(startWatchdog);
       listening = true;
       micBtn.classList.add('listening');
-      input.placeholder = "Je t'écoute... (appuie à nouveau pour envoyer)";
+      input.placeholder = "Je t'écoute...";
     };
 
-    recognition.onresult = (event) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const chunk = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += chunk + ' ';
-        } else {
-          interim += chunk;
+    function dedupeRepeats(text) {
+      let w = text.trim().split(/\s+/).filter(Boolean);
+      const key = x => norm(x).replace(/[^a-z0-9]/g, '');
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (let L = Math.floor(w.length / 2); L >= 2 && !changed; L--) {
+          for (let i = 0; i + 2 * L <= w.length; i++) {
+            let same = true;
+            for (let k = 0; k < L; k++) if (key(w[i + k]) !== key(w[i + L + k])) { same = false; break; }
+            if (same) { w.splice(i + L, L); changed = true; break; }
+          }
+        }
+        if (!changed) {
+          // fin de phrase qui recommence le début d'un bloc précédent (copie incomplète)
+          for (let L = Math.floor(w.length / 2); L >= 2 && !changed; L--) {
+            for (let i = 0; i + L < w.length; i++) {
+              const tail = w.length - (i + L);
+              if (tail < 2 || tail > L) continue;
+              let same = true;
+              for (let k = 0; k < tail; k++) if (key(w[i + k]) !== key(w[i + L + k])) { same = false; break; }
+              if (same) { w.splice(i + L, tail); changed = true; break; }
+            }
+          }
         }
       }
-      input.value = (finalTranscript + interim).trim();
+      return w.join(' ');
+    }
+    let sessionText = '';
+    recognition.onresult = (event) => {
+      const last = event.results[event.results.length - 1];
+      sessionText = last[0].transcript.trim();
+      input.value = dedupeRepeats(sessionText);
     };
 
     recognition.onerror = (event) => {
@@ -2355,21 +2379,13 @@
 
     recognition.onend = () => {
       clearTimeout(startWatchdog);
-      if (!manualStop) {
-        // Le moteur du navigateur s'est arrêté tout seul (silence, timeout interne...) :
-        // on relance discrètement pour continuer à écouter la même question.
-        setTimeout(() => {
-          if (!manualStop) {
-            try { recognition.start(); } catch (e) { /* déjà en cours, on ignore */ }
-          }
-        }, 200);
-        return;
-      }
       listening = false;
       micBtn.classList.remove('listening');
       input.placeholder = "Écris ou parle...";
+      input.value = dedupeRepeats(input.value);
       const text = input.value.trim();
       finalTranscript = '';
+      sessionText = '';
       if (text) {
         form.requestSubmit();
       }
@@ -2382,9 +2398,11 @@
         return;
       }
       if (window.speechSynthesis) window.speechSynthesis.cancel();
+      try { aiAudioEl.pause(); } catch (e) {}
       stopTalking();
       input.value = '';
       finalTranscript = '';
+      sessionText = '';
       manualStop = false;
       try {
         recognition.start();
@@ -2393,7 +2411,7 @@
           if (!listening) {
             micError("Le micro ne répond pas ici — l'aperçu dans l'app bloque probablement l'accès au micro. Ouvre ce fichier dans Safari pour l'utiliser.");
           }
-        }, 2500);
+        }, 10000);
       } catch (err) {
         micError("Impossible de démarrer le micro : " + err.message);
       }
